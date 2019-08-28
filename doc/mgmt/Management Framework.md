@@ -530,7 +530,7 @@ Client applications can use swagger generated client SDK or any other REST clien
 
 SONiC Teleletry service provides the gNMI server, while the client must be provided by the user.
 
-GNMI client developed by JipanYANG.(github.com/jipanYANG/gnxi/gnmi_get, github.com/jipanYANG/gnxi/gnmi_set)
+GNMI client developed by JipanYANG.(https://github.com/jipanyang/gnxi/tree/master/gnmi_get, https://github.com/jipanyang/gnxi/tree/master/gnmi_set)
 is used for testing. gnmi_get and gnmi_set code has been changed to handle module name.
 
 Note: Although the GRPC protocol allows for many encodings and models to be used, our usage is restricted to JSON encoding.
@@ -540,7 +540,7 @@ Supported RPC Operations:
 - Get: Get one or more paths and have value(s) returned in a GetResponse.
 - Set: Update, replace or delete objects
     + Update: List of one or more objects to update
-    + Replace: List of one or objects to replace existing objects, any unspecified fields wil be defaulted.
+    + Replace: List of one or objects to replace existing objects.
     + Delete: List of one or more object paths to delete
 - Capabilities: Return gNMI version and list of supported models
 - Subscribe:
@@ -560,6 +560,10 @@ Get:
 
 Set:
 ----
+Update:
+-------
+    `./gnmi_set -update /openconfig-acl:acl/:@./test/01_create_MyACL1_MyACL2.json -target_addr 127.0.0.1:8080 -alsologtostderr -insecure true -pretty`
+
 Replace:
 --------
     `./gnmi_set -replace /openconfig-acl:acl/:@./test/01_create_MyACL1_MyACL2.json -target_addr 127.0.0.1:8080 -alsologtostderr -insecure true -pretty`
@@ -794,16 +798,16 @@ definition files (both YANG generated and manual) along with link to open Swagge
 
 ##### 3.2.2.5 gNMI server
 
-1. gNMI server is part of the telemetry process that supports telemtry as well as gNMI.
-2. The gRPC server opens a TCP port and allows only valid mutually authenticated TLS connections, which requires valid Client, server and CA Certificates be installed as well a properly configured DNS. Multiple simultaneous connections are allowed to gNMI server.
-3. The gNMI Agent uses the db client, as well as the non-db client to access and modify data directly in the redis DB.
-4. The Translib client is used to provide alternative models of access such as Openconfig models as opposed to the native redis schema, as long as the Translib supports these models. Translib offers bidirectional translation between the native redis model and the desired north bound model, as well as notifications/updates on these model objects to support telemetry and asynchronous updates, alarms and events. Translib should also provide information about what models it supports so that information can be returned in gNMI Capabilities response.
+1. gNMI server is part of the telemetry process that supports telemetry as well as gNMI.
+2. The gNMI server opens TCP port 8080 and allows only tls connections to be established. Multiple simultaneous connections are allowed to gNMI server.
+3. The gNMI server can use either the DB client to access data directly in the SONiC DBs, translib for OpenConfig models or a non-DB client to access other data depending on the "target" option specified in the gnmi request from the client.
+4. Translib is used to provide alternative models of access such as Openconfig models as opposed to the native redis schema, as long as the Translib supports these models. Translib offers bidirectional translation between the native redis model and the desired north bound model, as well as notifications/updates on these model objects to support telemetry and asynchronous updates, alarms and events. The gNMI Server obtains from Translib a list of data models it supports so that this information can be returned in gNMI Capabilities response.
 5. The gNMI server defines the four RPC functions as required by the gNMI Specification: Get, Set, Capabilities and Subscribe.
 6. Since the db, non-db and Translib clients offer the functionality to support these functions, gNMI only has to translate the paths and object payloads into the correct parameters for the client calls and package the results back into the response gNMI objects to return to the gNMI Client, which is a straightforward operation, since no additional processing of the data is expected to be done in the gNMI server itself. When new models are added to Translib, no additional work should be required to support them in gNMI server.
 7. All operations in a Set request are processed in a single transaction that will either succeed or fail as one operation. The db, non-db and Translib clients must support a Bulk operation in order to achieve the transactional behavior. gNMI server then must use this Bulk operation for Set requests.
-8. Subscribe operations: Once, Poll and Stream require that the gRPC connection remain open until the subscription is completed. This means many connections must be supported. Subscribe offers several options, such as only sending object updates (not the whole object) which requires support form the db clients. Subscribe also allows for periodic sampling defined by the client. This must be handled in the gNMI agent itself. This requires a timer for each subscribe connection of this type in order to periodically poll the db client and return the result in a Subscribe Response. These timers should be destroyed when the subscription gRPC connection is closed.
+8. Subscribe operations: Once, Poll and Stream require that the gNMI connection remain open until the subscription is completed. This means many connections must be supported. Subscribe offers several options, such as only sending object updates (not the whole object) which requires support form the db clients. Subscribe also allows for periodic sampling defined by the client. This must be handled in the gNMI agent itself. This requires a timer for each subscribe connection of this type in order to periodically poll the db client and return the result in a Subscribe Response. These timers should be destroyed when the subscription gNMI connection is closed.
 
-###### 3.2.2.5.1 Files changed/added:
+###### 3.2.2.5.1 Files changed/added to sonic telemetry:
 
     |-- gnmi_server
     |   |-- client_subscribe.go
@@ -818,14 +822,6 @@ definition files (both YANG generated and manual) along with link to open Swagge
     |
     |-- transl_utils -------------------- ADDED
         |-- transl_utils.go ------------- ADDED    (Layer for invoking Translib API's)
-
-###### 3.2.2.5.2 Sample Requests
-
-go run gnmi_get.go  -xpath /openconfig-acl:acl/acl-sets/acl-set[name=MyACL4][type=ACL_IPV4]/acl-entries/acl-entry[sequence-id=1] -target_addr 10.130.84.34:8081 -alsologtostderr -insecure true -pretty
-
-go run gnmi_set.go -replace  /openconfig-acl:acl/acl-sets/acl-set[name=MyACL4][type=ACL_IPV4]/acl-entries/acl-entry=2/actions/config:@openconfig.JSON -target_addr 10.130.84.34:8081 -alsologtostderr -insecure true -pretty
-
-go run gnmi_capabilities.go -target_addr 10.130.84.34:8081 -alsologtostderr -insecure true -pretty
 
 ##### 3.2.2.6 Translib
 
@@ -1694,20 +1690,8 @@ Describe key scaling factor and considerations
 
 #### GNMI
 1.  Verify that gnmi_get is working at Toplevel module
-2.  Verify thet gnmi_get is working for each ACL Table
-3.  Verify gnmi_get working for each ACL Rule:
-4.  Verify that gnmi_get is working for all ACL interfaces
-5.  Verify that gnmi_get is working for each ACL interface name
-6.  Verify that gnmi_get fails for non-existent ACL name and type
-7.  Verify that TopLevel node can be deleted
-8.  Verify that a particular ACL Table can be deleted
-9.  Verify that ACL rule can be deleted
-10. Verify that ACL table can be created
-11. Verify that ACL rule can be created
-12. Verify that ACL binding can be created
-13. Verify that creating rule on non existent ACL gives error
-14. Verify that giving invalid interface number is payload gives error.
-15. Verify that  GNMI capabalities is returning correctly.
+2.  Verify thet gnmi_set is working for each Toplevel module
+3.  Verify that  GNMI capabalities is returning correctly.
 
 #### Request Binder (YGOT)
 1.  create a YGOT object binding for the uri ends with container
