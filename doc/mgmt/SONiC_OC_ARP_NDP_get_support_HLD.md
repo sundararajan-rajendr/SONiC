@@ -17,8 +17,8 @@ Implement get support for ARP/NDP using CLI/REST/gNMI SONiC management framework
 [Table 1: Abbreviations](#table-1-abbreviations)
 
 # Revision
-| Rev |     Date    |       Author       | Change Description                |
-|:---:|:-----------:|:------------------:|-----------------------------------|
+| Rev |     Date    |       Author                | Change Description                |
+|:---:|:-----------:|:---------------------------:|-----------------------------------|
 | 0.1 | 09/10/2019  |  Venkatesan Mahalingam      | Initial version                   |
 
 # About this Manual
@@ -31,8 +31,8 @@ Covers Northbound get interface for the ARP/NDP feature, as well as Unit Test ca
 ### Table 1: Abbreviations
 | **Term**                 | **Meaning**                         |
 |--------------------------|-------------------------------------|
-| ARP                      | Address Resolution Protocol
-| NDP                      | Neighbor Discovery Protocol
+| ARP                      | Address Resolution Protocol         |
+| NDP                      | Neighbor Discovery Protocol         |
 
 # 1 Feature Overview
 
@@ -154,9 +154,9 @@ Address        Hardware address    Interface         Egress Interface
 sonic#
 
 sonic# show ip arp summary
-Total Entries    
+Total Entries
 ---------------
-     2                 
+     2
 sonic#
 
 
@@ -201,18 +201,18 @@ sonic#
 sonic# show ipv6 neighbors summary
 Total Entries
 --------------
-     3         
+     3
 sonic#
 
 
 ````
 #### 3.6.2.3 Debug Commands
 #### 3.6.2.4 IS-CLI Compliance
-The following table maps SONIC CLI commands to corresponding IS-CLI commands. The compliance column identifies how the command comply to the IS-CLI syntax:
+The following table maps SONiC CLI commands to corresponding IS-CLI commands. The compliance column identifies how the command comply to the IS-CLI syntax:
 
 - **IS-CLI drop-in replace**  – meaning that it follows exactly the format of a pre-existing IS-CLI command.
 - **IS-CLI-like**  – meaning that the exact format of the IS-CLI command could not be followed, but the command is similar to other commands for IS-CLI (e.g. IS-CLI may not offer the exact option, but the command can be positioned is a similar manner as others for the related feature).
-- **SONIC** - meaning that no IS-CLI-like command could be found, so the command is derived specifically for SONIC.
+- **SONiC** - meaning that no IS-CLI-like command could be found, so the command is derived specifically for SONiC.
 
 |CLI Command|Compliance|IS-CLI Command (if applicable)| Link to the web site identifying the IS-CLI command (if applicable)|
 |:---:|:-----------:|:------------------:|-----------------------------------|
@@ -228,7 +228,7 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 | show ipv6 neighbors interface { ethernet/port-channel/vlan } |IS-CLI drop-in replace | | |
 |show ipv6 neighbors interface { ethernet/port-channel/vlan } summary  | IS-CLI drop-in replace | | |
 |show ipv6 neighbors ``<A::B>``  | IS-CLI drop-in replace | | |
-|show ip arp mac-address ``<mac>`` | SONIC | | In order to match ARP command options, having mac-address based filter for this command as well|
+|show ip arp mac-address ``<mac>`` | SONiC | | In order to match ARP command options, having mac-address based filter for this command as well|
 
 
 
@@ -260,7 +260,7 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 # 8 Scalability
 
 # 9 Unit Test
-The following test cases will be tested using CLI/REST/GNMI management interfaces.
+The following test cases will be tested using CLI/REST/gNMI management interfaces.
 #### ARP test cases:
 1) Verify whether "show ip arp" command dumps all the ARP entries
 
