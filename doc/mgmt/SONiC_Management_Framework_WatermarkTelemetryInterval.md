@@ -49,7 +49,11 @@ N/A
 Design watermark telemetry interval support using transformer.
 ### 1.2.2 Container
 Changes will be made in the sonic-mgmt-framework container
-
+Added files:
+1. XML file for the CLI
+2. Python script to handle CLI request (actioner)
+3. Jinja template to render CLI output (renderer)
+4. SONiC YANG model
 ### 1.2.3 SAI Overview
 N/A
 # 2 Functionality
@@ -81,20 +85,30 @@ This feature will enable users to create/show configuration changes to CONGIG DB
 ## 3.6 User Interface
 ### 3.6.1 Data Models
 **sonic-watermark-telemetry.yang**
-
+````
+module: sonic-watermark-telemetry
+    +--rw sonic-watermark-telemetry
+       +--rw WATERMARK_TABLE
+          +--rw interval?   uint64
+````
 
 ### 3.6.2 CLI
 #### 3.6.2.1 Configuration Commands
-````
-Set watermark telemetry interval:-
-sonic(config)# watermark telemetry interval <value>
-````
 
+Set watermark telemetry interval:-
+````
+watermark telemetry interval <value>
+````
+````
+sonic(config)# watermark telemetry interval 200
+
+````
 
 #### 3.6.2.2 Show Commands
 ````
 sonic# show watermark telemetry interval
-  Telemetry interval: 100 second(s)
+  
+   Telemetry interval: 200 second(s)
 ````
 
 
@@ -127,10 +141,13 @@ N/A
 
 
 # 9 Unit Test
-- Configure and validate watermark telemetry interval via CLI
-- Verify show watermark telemetry interval via CLI
-- Configure and validate watermark telemetry interval via REST
-- Verify show watermark telemetry interval via REST
-- Configure and validate watermark telemetry interval via gNMI
-- Verify show watermark telemetry interval via gNMI
+| Test Name | Test Description |
+| :------ | :----- |
+Set  interval via CLI | validate watermark telemetry interval in configDB
+Show interval via CLI | Verify show watermark telemetry interval
+Set  interval via REST | validate watermark telemetry interval in configDB
+Show interval via REST | Verify show watermark telemetry interval
+Set  interval via gNMI | validate watermark telemetry interval in configDB
+Show interval via gNMI | Verify show watermark telemetry interval
+
 
