@@ -1,5 +1,5 @@
 # Watermark Telemetry
-watermark telemetry interval support in management framework.
+Watermark telemetry interval support in management framework.
 # High Level Design Document
 #### Rev 0.1
 
@@ -20,7 +20,9 @@ watermark telemetry interval support in management framework.
 # About this Manual
 This document provides general information about watermark telemetry show and configure interval in SONiC cli using the management framework.
 # Scope
-This document describes the high level design of watermark telemetry interval as well as unit test cases.
+This document describes the high level design of watermark telemetry interval as well as unit test cases.  Reference:
+https://github.com/Azure/sonic-utilities/blob/master/doc/Command-Reference.md#watermark-configuration-and-show
+
 
 
 # 1 Feature Overview
@@ -29,16 +31,13 @@ This feature will enable users to configure watermark telemetry interval in SONi
 
 
 ## 1.1 Requirements
- https://github.com/Azure/sonic-utilities/blob/master/doc/Command-Reference.md#watermark-configuration-and-show
-
-
 ### 1.1.1 Functional Requirements
-
+N/A
 
 ### 1.1.2 Configuration and Management Requirements
 1. CLI configuration/show support
 2. REST API support
-3. GNMI support
+3. gNMI support
 
 ### 1.1.3 Scalability Requirements
 N/A
@@ -58,32 +57,37 @@ Added files:
 N/A
 # 2 Functionality
 ## 2.1 Target Deployment Use Cases
-
+N/A
 ## 2.2 Functional Description
-
+N/A
 
 # 3 Design
 ## 3.1 Overview
 ## 3.2 DB Changes
-### 3.2.1 CONFIG DB
-This feature will enable users to create/show configuration changes to CONGIG DB
+### 3.2.1 ConfigDB
+This feature will enable users to make/show configuration changes to ConfigDB
 ### 3.2.2 APP DB
+N/A
 ### 3.2.3 STATE DB
+N/A
 ### 3.2.4 ASIC DB
+N/A
 ### 3.2.5 COUNTER DB
-
+N/A
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
+N/A
 ### 3.3.2 Other Process
-
+N/A
 
 ## 3.4 SyncD
-
+N/A
 ## 3.5 SAI
-
+N/A
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
+Supported SONiC YANG attributes:
 **sonic-watermark-telemetry.yang**
 ````
 module: sonic-watermark-telemetry
@@ -96,6 +100,8 @@ module: sonic-watermark-telemetry
 #### 3.6.2.1 Configuration Commands
 
 Set watermark telemetry interval:-
+Default value is 120 
+
 ````
 watermark telemetry interval <value>
 ````
@@ -130,24 +136,24 @@ N/A
 
 
 # 4 Flow Diagrams
-
+N/A
 # 5 Error Handling
-
+N/A
 # 6 Serviceability and Debug
-
+N/A
 # 7 Warm Boot Support
-
+N/A
 # 8 Scalability
-
+N/A
 
 # 9 Unit Test
 | Test Name | Test Description |
 | :------ | :----- |
-Set  interval via CLI | validate watermark telemetry interval in configDB
+Set  interval via CLI | Validate watermark telemetry interval in ConfigDB
 Show interval via CLI | Verify show watermark telemetry interval
-Set  interval via REST | validate watermark telemetry interval in configDB
+Set  interval via REST | Validate watermark telemetry interval in ConfigDB
 Show interval via REST | Verify show watermark telemetry interval
-Set  interval via gNMI | validate watermark telemetry interval in configDB
+Set  interval via gNMI | Validate watermark telemetry interval in ConfigDB
 Show interval via gNMI | Verify show watermark telemetry interval
 
 
