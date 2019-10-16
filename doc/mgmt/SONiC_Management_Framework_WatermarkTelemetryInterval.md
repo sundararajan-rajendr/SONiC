@@ -1,5 +1,7 @@
 # Watermark Telemetry
-Watermark telemetry interval support in management framework.
+Watermark telemetry interval support in management framework.The watermark telemetry interval has nothing to do with telemetry sample/heart-beat intervals.
+This is sampling interval for QOS watermark pcket/queue counters
+
 # High Level Design Document
 #### Rev 0.1
 
@@ -87,6 +89,7 @@ N/A
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
+There is currently no OC YANG supporting this feature, hence SONiC YANG is used.
 Supported SONiC YANG attributes:
 **sonic-watermark-telemetry.yang**
 ````
