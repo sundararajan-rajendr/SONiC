@@ -1,5 +1,4 @@
-# Feature Name
-Authentication and Role-Based Access Control in the SONiC Management Framework
+# Authentication and Role-Based Access Control
 # High Level Design Document
 #### Rev 0.1
 
