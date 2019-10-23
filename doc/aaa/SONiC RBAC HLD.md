@@ -105,8 +105,6 @@ This document will NOT extensively cover (or assumes the pre-existence of):
 - For RBAC, Linux Groups will facilitate authorization. Initially, two roles will be supported: read/write and read-only. Additionally, remotely-authenticated users who map to a defined role will be authenticated as a static global user on the system. These limitations should be revisited at a later date.
 
 
-
-
 ### 1.1.1 Functional Requirements
 
 #### 1.1.1.1 NBI Authentication
@@ -115,19 +113,19 @@ A variety of authentication methods must be supported:
   - Password-based Authentication
   - Public-key Authentication
 * **REST** authentication
-  - Password-based Authentication
-  - Token-based authentication
+  - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
 * **gNMI** Authentication
-  - Password-based Authentication
-  - Token-based authentication
+  - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
-(Question from Jeff: When a user logs into the switch via SSH, will they be "dropped into" the KLISH shell? Can I make that assumption in this HLD?)
+(**Question from Jeff**: When a user logs into the switch via SSH, will they be "dropped into" the KLISH shell? Can I make that assumption in this HLD?)
 
 #### 1.1.1.2 CLI Authentication to REST server
 Given that the CLI module works by issuing REST transactions to the Management Framework's REST server, the CLI module must also be able to authenticate with the REST server when REST authentication is enabled. This can be accomplished via several approaches:
 1. **UNIX Socket** -- Since a user accessing the CLI has already been authenticated, the CLI module can communicate with the REST server via a UNIX socket. This UNIX socket is accessed as `root`, will not enforce any authentication methods, and is solely intended for use between CLI and REST server, so care must be taken to ensure that it is not remotely accessible by any indirect means. Additionally, the username of the CLI user must be shared between the CLI and the REST server, so that the REST server can further relay this information to Translib for RBAC enforcement. Note that this approach is still being researched, and (at first glance) a significant portion of custom code will need to be implemented.
 2. **Self-Signed Certificates** -- As a user authenticates with SSH and is given access to the CLI shell, a script runs to generate a self-signed certificate associated with the user. Alternatively, the user's self-signed certificate may be generated when the user is "created" on the system. The user's information is embedded in the Subject field of the certificate, and then the certificate is installed in a static location (i.e., trust store). The CLI authenticates to the REST server with the same certificate, which is accepted because the REST server trusts all certificates installed in the static location. This approach is not as performant as the UNIX socket approach, but has the advantage of allowing the REST server to treat all incoming connections the same way, regardless of the client being a REST endpoint or the CLI module.
+
+(TODO/DELL: Finalize on one of the above methods, then revise the document)
 
 #### 1.1.1.3 Translib Enforcement of RBAC
 REST and gNMI server modules must ensure that the username is passed to Translib so that it can enforce RBAC for a given user. Translib will be the centralized point of authorization.
@@ -162,7 +160,7 @@ Adding authentication to NBIs will result in some performance overhead, especial
 - Persistent HTTP connections can be used to preserve TCP sessions, thereby avoiding handshake overhead.
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
 - Token-based authentication can be used to preserve sessions for users who have already authenticated with password-based authentication, so that they do not need to constantly re-use their passwords.
-(TODO/DELL: What's the mechanism for this? JWT?)
+(TODO/DELL: Finalize on the method for token-based auth. JWT is currently preferred.)
 
 #### 1.1.3.2 gNMI Server
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
@@ -193,7 +191,7 @@ N/A
 Enterprise networks that enforce authentication for their management interfaces.
 
 ## 2.2 Functional Description
-This feature enables authentication and Role-Based Access Control (RBAC) on the REST and gNMI programmatic interfaces that are provided by the SONiC Management Framework and Telemetry containers. With respect to authentication, these programmatic interfaces will support password-based authentication, token-based authentication, and certificate-based authentication.
+This feature enables authentication and Role-Based Access Control (RBAC) on the REST and gNMI programmatic interfaces that are provided by the SONiC Management Framework and Telemetry containers. With respect to authentication, these programmatic interfaces will support password-based authentication with tokens, and certificate-based authentication.
 
 Since the Klish CLI in the management framework communicates with the REST server in the back-end, the solution will also be extended to support REST authentication.
 
