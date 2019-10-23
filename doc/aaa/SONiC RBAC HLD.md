@@ -6,8 +6,7 @@
 - [Revision History](#revision-history)
 - [About this Manual](#about-this-manual)
 - [Scope](#scope)
-- [Definitions/Abbreviations](#definitions-abbreviations)
-    + [Table 1: Abbreviations](#table-1--abbreviations)
+- [Definitions/Abbreviations](#definitionsabbreviations)
 - [1 Feature Overview](#1-feature-overview)
   * [1.1 Requirements](#11-requirements)
     + [1.1.1 Functional Requirements](#111-functional-requirements)
@@ -70,11 +69,14 @@
 
 # About this Manual
 This document provides a high-level design approach for authentication and RBAC in the SONiC Management Framework.
+
 For authentication, this document describes how the CLI and programmatic interfaces (REST, gNMI) -- collectively referred to in this document as the northbound interfaces (NBIs) -- will authenticate users and the supported credentials and methods.
+
 For authorization, this document describes a centralized authorization approach to be implemented in the Translib component of the SONiC Management Framework.
 
 # Scope
 This document covers the interfaces and mechanisms by which NBIs will authenticate users who wish to access and configure the SONiC system via the Management Framework. It will also cover RBAC enforcement.
+
 This document will NOT extensively cover (or assumes the pre-existence of):
 - Implementation of remote authentication and authorization (RADIUS, TACACS+, etc.)
 - Local user management: CLIs and APIs for creating local users on the system (TBD)
@@ -83,7 +85,6 @@ This document will NOT extensively cover (or assumes the pre-existence of):
 
 # Definitions/Abbreviations
 
-### Table 1: Abbreviations
 | **Term**                 | **Meaning**                         |
 |:--------------------------|:-------------------------------------|
 | RBAC                      | Role-Based Access Control                   |
@@ -295,10 +296,12 @@ Authentication errors will be handled by SSH. However, the CLI must gracefully h
 
 ## 5.4 Translib
 (TODO/BRCM: Describe Translib RBAC error handling)
+
 Question/ALL: What happens if a user authenticates but is not part of one of the pre-defined groups? Perhaps they should not be allowed to do anything at all?
 
 # 6 Serviceability and Debug
 All operations performed by NBIs (CLI commands, REST/gNMI operations) should be logged/audited with usernames attached to the given operation(s) performed.
+
 Initially, users who are remotely authenticated will share a common role-specific username, so there will be a limitation here.  
 
 # 7 Warm Boot Support
