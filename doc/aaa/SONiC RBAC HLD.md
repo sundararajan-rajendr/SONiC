@@ -35,6 +35,7 @@
     + [3.2.3 STATE DB](#323-state-db)
     + [3.2.4 ASIC DB](#324-asic-db)
     + [3.2.5 COUNTER DB](#325-counter-db)
+    + [3.2.6 USER DB](#326-user-db)
   * [3.3 Switch State Service Design](#33-switch-state-service-design)
     + [3.3.1 Orchestration Agent](#331-orchestration-agent)
     + [3.3.2 Other Process](#332-other-process)
@@ -128,11 +129,20 @@ Given that the CLI module works by issuing REST transactions to the Management F
 (TODO/DELL: Finalize on one of the above methods, then revise the document)
 
 #### 1.1.1.3 Translib Enforcement of RBAC
-REST and gNMI server modules must ensure that the username is passed to Translib so that it can enforce RBAC for a given user. Translib will be the centralized point of authorization.
+The Translib module in the [management framework](https://github.com/project-arlo/SONiC/blob/master/doc/mgmt/Management%20Framework.md) is a central point for all commands, regardless of the interface (CLI, REST, gNMI). Therefore, the RBAC enforcement will be done in Translib library.
+
+The CLI, REST, and gNMI will result in Translib calls with xpath and payload. Additionally, the REST and gNMI server modules must pass the username to the Translib. The RBAC checks will be enforced in the **Request Handler** of the Translib. The Request Handler processes the entire transaction atomically. Therefore, if even one operation in the transaction is not authorized, the entire transaction is rejected with the appropriate "Not authorized" error code. If the authorization succeeds, the transaction is passed to the Common Application module for further ‘transformation’ into the ABNF format. The rest of the flow of the transaction through the management framework is unmodified.
+ 
+At bootup time of the manageability framework (or gNMI container), it is recommended to cache the [User DB](#326-user-db) if not already cached. This is because every command needs to access the information in the User DB in order to access the information. Alternately, instead of caching the entire User DB, the information can be cached once the record is read from the DB. Additionally, the Translib must listen to change notifications on the User DB in order to keep its cache current. 
+
+As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use linux commands on the linux shell and create users and linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the linux /etc/passwd file in sync, Translib must register for notification for changes on /etc/passwd file. If there is no straighforwards way of doing so, then a function must be triggered on timer expiry to proactively read the /etc/passwd file and update the User DB. 
+(TODO/Dell - Please update what is the approach followed).
+
+Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the /etc/passwd file. 
+This way, the User DB information and the linux groups information is always in sync. 
 
 Since Translib is the main authority on authorized operations, this means that the NBIs cannot render to the user what they are and are not allowed to do. The CLI, therefore, renders the entire command tree to a user, even the commands they are not authorized to execute.
 
-(TODO/BRCM: feel free to elaborate more on the mechanisms of Translib and RBAC enforcement)
 
 #### 1.1.1.4 Linux Groups
 RBAC will be facilitated via Linux Groups:
@@ -166,7 +176,8 @@ Adding authentication to NBIs will result in some performance overhead, especial
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
 
 #### 1.1.3.3 Translib
-(TODO/BRCM: Fill this out if applicable)
+- Translib will cache all the user information along with the privilege and resource information to avoid the overhead of querying them every time we receive a request.
+- Will rely on notification to update any change in the user information, privilege or resource information
 
 ### 1.1.4 Warm Boot Requirements
 N/A
@@ -220,6 +231,45 @@ N/A
 
 ### 3.2.5 COUNTER DB
 N/A
+
+### 3.2.6 USER DB
+A new DB will be introduced in Redis which maintains RBAC related tables in it. The User DB will have the following tables :
+* **UserTable**
+  
+  This table contains the username to role mapping needed for enforcing the authorization checks.  It has the following columns :
+    * *user* : This is the username being authorized. This is a string.
+    * *tenant* : This contains the tenant with which the user is associated. This is a string
+    * *role* : This specifies the role associated with the username in the tenant. This is a comma separated list of strings.
+    The UserTable is keyed on <***user, tenant***>.
+
+* **PrivilegeTable**
+  
+  This table has provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
+    * *role* : The role associated with the user that is being authorized. This is a string.
+    * *feature* : This is feature that the role is being authorized to access. The granularity of the feature can be :
+        * *feature* - A logical grouping of multiple commands. If the user is authorized to access a particular feature, the column contains the tag associated with that feature. (More on tagging later. This will be implemented in Phase 2 of RBAC.)
+        * *feature-group* - A logical grouping of multiple features. If the user is authorized to a feature-group, the column contains the name of the feature-group. (More on feature-group later. This will be implemented in Phase 2 of RBAC.)
+        * *entire-system* - If the user is being granted access to the entire system, the column contains *all*
+    * *permissions* : Defines the permissions associated with the role. This is a string.
+        * *none* - This is the default permissions that a role is created with. A role associated with *none* permission cannot access any resources on the system to read, or to modify them.
+        * *read-only* - The role only has read access to the resources associated with the *feature*.
+        * *read-write* - The role has permissions to read and write (create, modify and delete) the resources associated with the *feature*.
+  The PrivilegeTable is keyed on <***role, feature***>
+    
+* **ResourceTable**
+  (To be implemented in Phase 2)
+  Though the resources are statically tagged with the features that they belong to, a ResourceTable is still needed so as to allow for future extensibility. It is possible that in the future, a customer wants a more granular control over the authorization and wants to either sub partition the features or override the default tagging associated with a feature. The ResourceTable will allow for this support in the future. In the Phase 2, this table will be create using the default tagging associated with the resources.
+    * *resource* : The xpath associated with the resource being accessed. This is a string.
+    * *feature-name* : The tag of the feature this resource belongs to.
+  The ResourceTable is keyed on <***resource, feature***>
+
+* **TenantTable**
+  (To be implemented in Phase 3 or when Multi-tenancy is introduced)
+  In most systems today, a single SONiC system will serve multiple tenants. A tenant is a group of users who have a different privileges for resource instances. As SONiC becomes multitenant, RBAC needs to account for this when authorizing users. The TenantTable is needed to enable this and has the following columns :
+    * *resource* : The xpath associated with the resource being accessed. This is a string.
+    * *tenant* : The tenant for which the resource partitioning is being done. This is a string.
+    * *instances* : The instances of the *resource* allocated to this *tenant*. This is a list of instances.
+  The TenantTable is keyed on <***resource, tenant***>
 
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
@@ -293,9 +343,10 @@ The gNMI server should return standard gRPC errors when authentication fails. (Q
 Authentication errors will be handled by SSH. However, the CLI must gracefully handle authorization failures from the REST server (the authorization failure would originate from Translib of course). While the CLI will render all of the available commands to a user, the user will actually only be able to execute a subset of them. This limitation is a result of the design decision to centralize RBAC in Translib. Nevertheless, the CLI must inform the user when they attempt to execute an unauthorized command.
 
 ## 5.4 Translib
-(TODO/BRCM: Describe Translib RBAC error handling)
+Translib will authorize the user and when the authorization fails will return appropriate error string to the REST/gNMI server.
 
 Question/ALL: What happens if a user authenticates but is not part of one of the pre-defined groups? Perhaps they should not be allowed to do anything at all?
+Answer : Yes. It should not be allowed to do anything at all. Using this, we will be following an implicit deny-all approach in which a user is not given access to anything unless explicitly allowed.
 
 # 6 Serviceability and Debug
 All operations performed by NBIs (CLI commands, REST/gNMI operations) should be logged/audited with usernames attached to the given operation(s) performed.
