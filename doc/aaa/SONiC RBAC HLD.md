@@ -176,7 +176,8 @@ Adding authentication to NBIs will result in some performance overhead, especial
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
 
 #### 1.1.3.3 Translib
-(TODO/BRCM: Fill this out if applicable)
+- Translib will cache all the user information along with the privilege and resource information to avoid the overhead of querying them every time we receive a request.
+- Will rely on notification to update any change in the user information, privilege or resource information
 
 ### 1.1.4 Warm Boot Requirements
 N/A
@@ -342,7 +343,7 @@ The gNMI server should return standard gRPC errors when authentication fails. (Q
 Authentication errors will be handled by SSH. However, the CLI must gracefully handle authorization failures from the REST server (the authorization failure would originate from Translib of course). While the CLI will render all of the available commands to a user, the user will actually only be able to execute a subset of them. This limitation is a result of the design decision to centralize RBAC in Translib. Nevertheless, the CLI must inform the user when they attempt to execute an unauthorized command.
 
 ## 5.4 Translib
-(TODO/BRCM: Describe Translib RBAC error handling)
+Translib will authorize the user and when the authorization fails will return appropriate error string to the REST/gNMI server.
 
 Question/ALL: What happens if a user authenticates but is not part of one of the pre-defined groups? Perhaps they should not be allowed to do anything at all?
 Answer : Yes. It should not be allowed to do anything at all. Using this, we will be following an implicit deny-all approach in which a user is not given access to anything unless explicitly allowed.
