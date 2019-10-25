@@ -14,6 +14,7 @@
       - [1.1.1.2 CLI Authentication to REST server](#1112-cli-authentication-to-rest-server)
       - [1.1.1.3 Translib Enforcement of RBAC](#1113-translib-enforcement-of-rbac)
       - [1.1.1.4 Linux Groups](#1114-linux-groups)
+      - [1.1.1.5 Certificate-based Authentication for REST and gNMI](#1115-certificate-based-authentication-for-rest-and-gnmi)
     + [1.1.2 Configuration and Management Requirements](#112-configuration-and-management-requirements)
     + [1.1.3 Scalability Requirements](#113-scalability-requirements)
       - [1.1.3.1 REST Server](#1131-rest-server)
@@ -116,14 +117,14 @@ A variety of authentication methods must be supported:
 * **REST** authentication
   - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
+  - **Note:** Currently the REST server only allows one of the above methods at a time; we need to update it to accept both
 * **gNMI** Authentication
   - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
-(**Question from Jeff**: When a user logs into the switch via SSH, will they be "dropped into" the KLISH shell? Can I make that assumption in this HLD?)
 
 #### 1.1.1.2 CLI Authentication to REST server
 Given that the CLI module works by issuing REST transactions to the Management Framework's REST server, the CLI module must also be able to authenticate with the REST server when REST authentication is enabled. This can be accomplished via several approaches:
-1. **UNIX Socket** -- Since a user accessing the CLI has already been authenticated, the CLI module can communicate with the REST server via a UNIX socket. This UNIX socket is accessed as `root`, will not enforce any authentication methods, and is solely intended for use between CLI and REST server, so care must be taken to ensure that it is not remotely accessible by any indirect means. Additionally, the username of the CLI user must be shared between the CLI and the REST server, so that the REST server can further relay this information to Translib for RBAC enforcement. Note that this approach is still being researched, and (at first glance) a significant portion of custom code will need to be implemented.
+1. **UNIX Socket** -- Since a user accessing the CLI has already been authenticated, the CLI module can communicate with the REST server via a UNIX socket. This UNIX socket is accessed as `root`, will not enforce any authentication methods, and is solely intended for use between CLI and REST server, so care must be taken to ensure that it is not remotely accessible by any indirect means. The user must also not be allowed to escalate their own privileges or execute unauthorized commands; this includes dropping into the Bash shell and executing commands from there. Additionally, the username of the CLI user must be shared between the CLI and the REST server, so that the REST server can further relay this information to Translib for RBAC enforcement. Note that this approach is still being researched, and (at first glance) a significant portion of custom code will need to be implemented.
 2. **Self-Signed Certificates** -- As a user authenticates with SSH and is given access to the CLI shell, a script runs to generate a self-signed certificate associated with the user. Alternatively, the user's self-signed certificate may be generated when the user is "created" on the system. The user's information is embedded in the Subject field of the certificate, and then the certificate is installed in a static location (i.e., trust store). The CLI authenticates to the REST server with the same certificate, which is accepted because the REST server trusts all certificates installed in the static location. This approach is not as performant as the UNIX socket approach, but has the advantage of allowing the REST server to treat all incoming connections the same way, regardless of the client being a REST endpoint or the CLI module.
 
 (TODO/DELL: Finalize on one of the above methods, then revise the document)
@@ -132,14 +133,14 @@ Given that the CLI module works by issuing REST transactions to the Management F
 The Translib module in the [management framework](https://github.com/project-arlo/SONiC/blob/master/doc/mgmt/Management%20Framework.md) is a central point for all commands, regardless of the interface (CLI, REST, gNMI). Therefore, the RBAC enforcement will be done in Translib library.
 
 The CLI, REST, and gNMI will result in Translib calls with xpath and payload. Additionally, the REST and gNMI server modules must pass the username to the Translib. The RBAC checks will be enforced in the **Request Handler** of the Translib. The Request Handler processes the entire transaction atomically. Therefore, if even one operation in the transaction is not authorized, the entire transaction is rejected with the appropriate "Not authorized" error code. If the authorization succeeds, the transaction is passed to the Common Application module for further ‘transformation’ into the ABNF format. The rest of the flow of the transaction through the management framework is unmodified.
- 
-At bootup time of the manageability framework (or gNMI container), it is recommended to cache the [User DB](#326-user-db) if not already cached. This is because every command needs to access the information in the User DB in order to access the information. Alternately, instead of caching the entire User DB, the information can be cached once the record is read from the DB. Additionally, the Translib must listen to change notifications on the User DB in order to keep its cache current. 
 
-As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use linux commands on the linux shell and create users and linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the linux /etc/passwd file in sync, Translib must register for notification for changes on /etc/passwd file. If there is no straighforwards way of doing so, then a function must be triggered on timer expiry to proactively read the /etc/passwd file and update the User DB. 
+At bootup time of the manageability framework (or gNMI container), it is recommended to cache the [User DB](#326-user-db) if not already cached. This is because every command needs to access the information in the User DB in order to access the information. Alternately, instead of caching the entire User DB, the information can be cached once the record is read from the DB. Additionally, the Translib must listen to change notifications on the User DB in order to keep its cache current.
+
+As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use Linux commands on the Linux shell and create users and Linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the Linux `/etc/passwd` file in sync, Translib must register for notification for changes on `/etc/passwd` file. If there is no straightforward way of doing so, then a function must be triggered on timer expiry to proactively read the `/etc/passwd` file and update the User DB.
 (TODO/Dell - Please update what is the approach followed).
 
-Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the /etc/passwd file. 
-This way, the User DB information and the linux groups information is always in sync. 
+Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` file.
+This way, the User DB information and the linux groups information is always in sync.
 
 Since Translib is the main authority on authorized operations, this means that the NBIs cannot render to the user what they are and are not allowed to do. The CLI, therefore, renders the entire command tree to a user, even the commands they are not authorized to execute.
 
@@ -154,6 +155,16 @@ RBAC will be facilitated via Linux Groups:
   - Remote user with `Admin` role mapped to a global `remote-user-su` user who is part of `admin` group and is a `sudoer`
   - In the future, this "global user" approach will be revisited so that remote users are authenticated with their own username so that their activities may be properly audited.
 
+#### 1.1.1.5 Certificate-based Authentication for REST and gNMI
+For the initial release, it will be assumed that certificates will be managed outside of the NBIs. That is, no CLIs or REST/gNMI interfaces will be implemented to support public key infrastructure management for certificates and certificate authorities. Certificates will be manually generated and copied into the system via Linux utilities.
+
+The REST server and gNMI server will use the same trust store for certificates, found at a location such as `/usr/local/share/ca-certificates`. The trust store itself must be managed by [existing Linux tools](https://manpages.debian.org/jessie/ca-certificates/update-ca-certificates.8.en.html).
+
+The REST server and gNMI server must implement a method by which a username can be determined from the presented client certificate, so that the username can thus be passed to Translib for RBAC enforcement. The username may be derived from the Subject field of the X.509v3 certificate, or it can be mapped to a user's home directory, similar to how SSH RSA keys are managed.
+
+(TODO/DELL: decide on a single approach here)
+
+Users must be informed by way of documentation so that they know how to manage their certificate infrastructure in order to properly facilitate REST and gNMI communication.
 
 ### 1.1.2 Configuration and Management Requirements
 
@@ -235,7 +246,7 @@ N/A
 ### 3.2.6 USER DB
 A new DB will be introduced in Redis which maintains RBAC related tables in it. The User DB will have the following tables :
 * **UserTable**
-  
+
   This table contains the username to role mapping needed for enforcing the authorization checks.  It has the following columns :
     * *user* : This is the username being authorized. This is a string.
     * *tenant* : This contains the tenant with which the user is associated. This is a string
@@ -243,7 +254,7 @@ A new DB will be introduced in Redis which maintains RBAC related tables in it. 
     The UserTable is keyed on <***user, tenant***>.
 
 * **PrivilegeTable**
-  
+
   This table has provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
     * *role* : The role associated with the user that is being authorized. This is a string.
     * *feature* : This is feature that the role is being authorized to access. The granularity of the feature can be :
@@ -255,7 +266,7 @@ A new DB will be introduced in Redis which maintains RBAC related tables in it. 
         * *read-only* - The role only has read access to the resources associated with the *feature*.
         * *read-write* - The role has permissions to read and write (create, modify and delete) the resources associated with the *feature*.
   The PrivilegeTable is keyed on <***role, feature***>
-    
+
 * **ResourceTable**
   (To be implemented in Phase 2)
   Though the resources are statically tagged with the features that they belong to, a ResourceTable is still needed so as to allow for future extensibility. It is possible that in the future, a customer wants a more granular control over the authorization and wants to either sub partition the features or override the default tagging associated with a feature. The ResourceTable will allow for this support in the future. In the Phase 2, this table will be create using the default tagging associated with the resources.
@@ -368,7 +379,7 @@ See previous section 1.1.3: Scalability Requirements
 | REST with token | Perform subsequent operations with token, ensure username/password are not re-prompted |
 | REST with certs | Install certificate to SONiC switch, authenticate to REST server with said certificate, perform some operations |
 | REST authorized RBAC | Perform authorized operations as both `Admin` and `Operator` via REST |
-| REST unauthrozied RBAC | Attempt unauthorized operations as both `Admin` and `Operator` via REST |
+| REST unauthorized RBAC | Attempt unauthorized operations as both `Admin` and `Operator` via REST |
 | CLI with password | SSH to the system with username/password and execute some commands |
 | CLI with RSA | SSH to the system with pubkey and execute some commands |
 | CLI authorized RBAC | SSH to the system and perform authorized commands |
@@ -376,8 +387,3 @@ See previous section 1.1.3: Scalability Requirements
 | RBAC no-group | Create a user and assign them to a non-predefined group; make sure they can't perform any operations |
 | gNMI authentication | Test the same authentication methods as REST, but for gNMI instead |
 | gNMI authorization | Test the same authorization as REST, but for gNMI instead |
-
-
-
-# 10 Internal Design Information
-(TODO/ALL: Remove)
