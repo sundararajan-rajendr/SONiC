@@ -14,7 +14,8 @@
       - [1.1.1.2 CLI Authentication to REST server](#1112-cli-authentication-to-rest-server)
       - [1.1.1.3 Translib Enforcement of RBAC](#1113-translib-enforcement-of-rbac)
       - [1.1.1.4 Linux Groups](#1114-linux-groups)
-      - [1.1.1.5 Certificate-based Authentication for REST and gNMI](#1115-certificate-based-authentication-for-rest-and-gnmi)
+      - [1.1.1.5 Certificate-based Authentication for gNMI and REST](#1115-certificate-based-authentication-for-gnmi-and-rest)
+      - [1.1.1.6 Local User Management](#1116-local-user-management)
     + [1.1.2 Configuration and Management Requirements](#112-configuration-and-management-requirements)
     + [1.1.3 Scalability Requirements](#113-scalability-requirements)
       - [1.1.3.1 REST Server](#1131-rest-server)
@@ -45,9 +46,7 @@
   * [3.6 User Interface](#36-user-interface)
     + [3.6.1 Data Models](#361-data-models)
     + [3.6.2 CLI](#362-cli)
-      - [3.6.2.1 Configuration Commands](#3621-configuration-commands)
-        * [3.6.2.1.1 Authentication Methods](#36211-authentication-methods)
-        * [3.6.2.1.2 User management](#36212-user-management)
+      - [3.6.2.1 Configuration Commands for User Management](#3621-configuration-commands-for-user-management)
       - [3.6.2.2 Show Commands](#3622-show-commands)
       - [3.6.2.3 Debug Commands](#3623-debug-commands)
       - [3.6.2.4 IS-CLI Compliance](#3624-is-cli-compliance)
@@ -81,7 +80,6 @@ This document covers the interfaces and mechanisms by which NBIs will authentica
 
 This document will NOT extensively cover (or assumes the pre-existence of):
 - Implementation of remote authentication and authorization (RADIUS, TACACS+, etc.)
-- Local user management: CLIs and APIs for creating local users on the system (TBD)
 - Public Key Infrastructure management: X.509v3 certificate installation, deletion, trust store management, etc.
 
 
@@ -105,7 +103,7 @@ This document will NOT extensively cover (or assumes the pre-existence of):
 - The SONiC Management Framework must support authenticated access for the various supported northbound interfaces (NBIs): CLI, REST, and gNMI. Since the CLI works with the REST server, it must also be authenticated with the REST server.
 - The NBIs must pass along the username info to Translib, so that Translib can enforce role-based access (RBAC).
 - For RBAC, Linux Groups will facilitate authorization. Initially, two roles will be supported: read/write and read-only. Additionally, remotely-authenticated users who map to a defined role will be authenticated as a static global user on the system. These limitations should be revisited at a later date.
-
+- Local user management: CLIs and APIs for creating and managing local users on the system -- their usernames, passwords, and roles.
 
 ### 1.1.1 Functional Requirements
 
@@ -115,9 +113,10 @@ A variety of authentication methods must be supported:
   - Password-based Authentication
   - Public-key Authentication
 * **REST** authentication
-  - Password-based Authentication with Token-based authentication
-  - Certificate-based Authentication
-  - **Note:** Currently the REST server only allows one of the above methods at a time; we need to update it to accept both
+  - Password-based Authentication with JWT token-based authentication
+
+(TODO/DELL: Add REST certificate-based authentication if we need it for the CLI to authenticate to the REST server. In the event that certificate-based authentication is needed, the REST server must be enhanced to accept all types of authentication concurrently)
+
 * **gNMI** Authentication
   - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
@@ -155,23 +154,26 @@ RBAC will be facilitated via Linux Groups:
   - Remote user with `Admin` role mapped to a global `remote-user-su` user who is part of `admin` group and is a `sudoer`
   - In the future, this "global user" approach will be revisited so that remote users are authenticated with their own username so that their activities may be properly audited.
 
-#### 1.1.1.5 Certificate-based Authentication for REST and gNMI
+#### 1.1.1.5 Certificate-based Authentication for gNMI and REST
 For the initial release, it will be assumed that certificates will be managed outside of the NBIs. That is, no CLIs or REST/gNMI interfaces will be implemented to support public key infrastructure management for certificates and certificate authorities. Certificates will be manually generated and copied into the system via Linux utilities.
 
-The REST server and gNMI server will use the same trust store for certificates, found at a location such as `/usr/local/share/ca-certificates`. The trust store itself must be managed by [existing Linux tools](https://manpages.debian.org/jessie/ca-certificates/update-ca-certificates.8.en.html).
+The gNMI server will use a trust store for certificates from a location such as `/usr/local/share/ca-certificates`. The trust store itself must be managed by [existing Linux tools](https://manpages.debian.org/jessie/ca-certificates/update-ca-certificates.8.en.html).
 
-The REST server and gNMI server must implement a method by which a username can be determined from the presented client certificate, so that the username can thus be passed to Translib for RBAC enforcement. The username may be derived from the Subject field of the X.509v3 certificate, or it can be mapped to a user's home directory, similar to how SSH RSA keys are managed.
+The gNMI server must implement a method by which a username can be determined from the presented client certificate, so that the username can thus be passed to Translib for RBAC enforcement. The username may be derived from the Subject field of the X.509v3 certificate, or it can be mapped to a user's home directory, similar to how SSH RSA keys are managed.
 
-(TODO/DELL: decide on a single approach here)
+Users must be informed by way of documentation so that they know how to manage their certificate infrastructure in order to properly facilitate gNMI communication.
 
-Users must be informed by way of documentation so that they know how to manage their certificate infrastructure in order to properly facilitate REST and gNMI communication.
+If certificate-based authentication is implemented for the REST server, it must use the same certificate scheme as the gNMI server to validate client certificates.
+
+#### 1.1.1.6 Local User Management
+An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators (with the appropriate role) must be able to add/delete users, modify users' passwords, and modify users' roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
+
+Additionally, users created via the NBIs must be stored in the Redis DB and synced with the Linux user database in `/etc/passwd` and `/etc/shadow`. Likewise, users created in Linux via `useradd` (or modified via `usermod` or `passwd`) must be synced to the Redis DB as well.
+
+
 
 ### 1.1.2 Configuration and Management Requirements
-
-Configuration and Management of authentication/RBAC will initially be limited to toggling authentication methods for the REST and gNMI NBIs.
-
-No UI will be initially developed for user management. Initially, users must be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc.
-
+An interface and accompanying CLI must be developed for local user management. Local users should be configurable like any other feature: via CLI, REST, and gNMI. Additionally, users may also be created and managed via Linux commands in the Bash shell. This will add additional complexity and require a service to sync between the Redis DB and the Linux user database.
 
 
 ### 1.1.3 Scalability Requirements
@@ -180,8 +182,7 @@ Adding authentication to NBIs will result in some performance overhead, especial
 #### 1.1.3.1 REST Server
 - Persistent HTTP connections can be used to preserve TCP sessions, thereby avoiding handshake overhead.
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
-- Token-based authentication can be used to preserve sessions for users who have already authenticated with password-based authentication, so that they do not need to constantly re-use their passwords.
-(TODO/DELL: Finalize on the method for token-based auth. JWT is currently preferred.)
+- Token-based authentication via JSON Web Tokens (JWT) will be used to preserve sessions for users who have already authenticated with password-based authentication, so that they do not need to constantly re-use their passwords.
 
 #### 1.1.3.2 gNMI Server
 - TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
@@ -195,12 +196,13 @@ N/A
 
 ## 1.2 Design Overview
 ### 1.2.1 Basic Approach
-The code will extend the existing Klish (CLI) and REST Server modules in the sonic-mgmt-framework repository. Klish will be extended to enable authentication to the REST server (depending on the ultimately chosen approach), and the REST Server will need to be extended to pass username data to the Translib.
+The code will extend the existing Klish (CLI) and REST Server modules in the sonic-mgmt-framework repository. Klish will be extended to enable authentication to the REST server (depending on the ultimately chosen approach), and the REST Server will need to be extended to map transactions to a user and pass that username data to the Translib.
+
+The gNMI server, which currently exists in the sonic-telemetry repository, needs to support passing the username down to Translib as well.
 
 The Translib code (also in sonic-mgmt-framework) will be extended to support RBAC via Linux Groups. It will receive username data from the REST/gNMI NBIs and perform the Group lookup for a given user.
 
-The gNMI server, which currently exists in the sonic-telemetry repository, needs to support passing the username down to Translib. It also needs to be extended to enable the 3 authentication methods, although they may just be enabled via configuration.
-
+For user management, a service must run on the host to sync the Redis User DB with the Linux user database and vice-versa.
 
 ### 1.2.2 Container
 SONiC Management Framework, gNMI Telemetry containers
@@ -219,7 +221,7 @@ Since the Klish CLI in the management framework communicates with the REST serve
 
 RBAC will be enforced centrally in the management framework, so that users accessing the system through varying interfaces will be limited to the same, consistent set of operations and objects depending on their role. Users' roles will be mapped using Linux Groups.
 
-Users and their groups will be managed via Linux tools and paradigms.
+Users and their role (group) assignments may be managed via Linux tools or the NBIs.
 
 # 3 Design
 ## 3.1 Overview
@@ -227,9 +229,7 @@ Users and their groups will be managed via Linux tools and paradigms.
 
 ## 3.2 DB Changes
 ### 3.2.1 CONFIG DB
-(TODO/DELL: Define ConfigDB changes. Mainly surrounding config of authentication methods for the REST/gNMI servers)
-
-Note: Users will not initially be stored in the ConfigDB, so they won't be portable between systems.
+N/A
 
 ### 3.2.2 APP DB
 N/A
@@ -282,6 +282,8 @@ A new DB will be introduced in Redis which maintains RBAC related tables in it. 
     * *instances* : The instances of the *resource* allocated to this *tenant*. This is a list of instances.
   The TenantTable is keyed on <***resource, tenant***>
 
+(QUESTION/BRCM: Could we also store salted+hashed user passwords in User Table, so that we can manage that info via configuration? Alternatively, we could create configDB schema that incorporates username, salted+hashed password, and role.)
+
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
 N/A
@@ -297,17 +299,21 @@ N/A
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
-Can be reference to YANG if applicable. Also cover gNMI here.
+TBD from developer
+(TODO/DELL)
 
 ### 3.6.2 CLI
-#### 3.6.2.1 Configuration Commands
-##### 3.6.2.1.1 Authentication Methods
-The authentication methods for REST and gNMI servers should be configurable to toggle them on/off.
+#### 3.6.2.1 Configuration Commands for User Management
+Users may be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc. They may also be managed via configuration.
 
-(TODO/DELL: Fill in CLIs here)
+##### username
+`username <name> password <password-string> role {admin | operator}` -- Configures a user on the system with a given name, password, and role.
+* **name** is a text string of 1-32 alphanumeric characters
+* **password-string** is a text string of 1-32 alphanumeric characters
+* Configuring another a user with the same **name** should result in modification of the existing user.
 
-##### 3.6.2.1.2 User management
-No UI will be initially developed for user management. Initially, users must be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc.
+`no username <name>` -- Deletes a user from the system.
+* **name** is a text string of 1-32 alphanumeric characters
 
 #### 3.6.2.2 Show Commands
 N/A
@@ -316,29 +322,10 @@ N/A
 N/A
 
 #### 3.6.2.4 IS-CLI Compliance
-(TODO/DELL)
-
-The following table maps SONIC CLI commands to corresponding IS-CLI commands. The compliance column identifies how the command comply to the IS-CLI syntax:
-
-- **IS-CLI drop-in replace**  – meaning that it follows exactly the format of a pre-existing IS-CLI command.
-- **IS-CLI-like**  – meaning that the exact format of the IS-CLI command could not be followed, but the command is similar to other commands for IS-CLI (e.g. IS-CLI may not offer the exact option, but the command can be positioned is a similar manner as others for the related feature).
-- **SONIC** - meaning that no IS-CLI-like command could be found, so the command is derived specifically for SONIC.
-
-|CLI Command|Compliance|IS-CLI Command (if applicable)| Link to the web site identifying the IS-CLI command (if applicable)|
-|:---:|:-----------:|:------------------:|-----------------------------------|
-| | | | |
-| | | | |
-| | | | |
-| | | | |
-| | | | |
-| | | | |
-| | | | |
-
-**Deviations from IS-CLI:** If there is a deviation from IS-CLI, Please state the reason(s).
+N/A
 
 ### 3.6.3 REST API Support
 N/A -- Allowing REST authentication to be configured via the REST API itself will introduce additional test complexities and/or non-deterministic behavior.
-
 
 # 4 Flow Diagrams
 N/A
@@ -356,8 +343,7 @@ Authentication errors will be handled by SSH. However, the CLI must gracefully h
 ## 5.4 Translib
 Translib will authorize the user and when the authorization fails will return appropriate error string to the REST/gNMI server.
 
-Question/ALL: What happens if a user authenticates but is not part of one of the pre-defined groups? Perhaps they should not be allowed to do anything at all?
-Answer : Yes. It should not be allowed to do anything at all. Using this, we will be following an implicit deny-all approach in which a user is not given access to anything unless explicitly allowed.
+If a user authenticates but is not part of one of the pre-defined groups, they will not be allowed to do anything at all on the system.
 
 # 6 Serviceability and Debug
 All operations performed by NBIs (CLI commands, REST/gNMI operations) should be logged/audited with usernames attached to the given operation(s) performed.
@@ -377,7 +363,6 @@ See previous section 1.1.3: Scalability Requirements
 |:--------------------------|:-------------------------------------|
 | REST with password | Authenticate to REST server with username/password and perform some operations |
 | REST with token | Perform subsequent operations with token, ensure username/password are not re-prompted |
-| REST with certs | Install certificate to SONiC switch, authenticate to REST server with said certificate, perform some operations |
 | REST authorized RBAC | Perform authorized operations as both `Admin` and `Operator` via REST |
 | REST unauthorized RBAC | Attempt unauthorized operations as both `Admin` and `Operator` via REST |
 | CLI with password | SSH to the system with username/password and execute some commands |
