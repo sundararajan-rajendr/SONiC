@@ -19,7 +19,7 @@ Layer 3 Mirror Session
 | 0.1 | 10/28/2019  |   Sucheta Mahara      | Initial version                   |
 
 # About this Manual
-This document provides information about Mirror Session configuration and Mirror type ACL in SONiC using the management framework based on current capabilities of SONiC.
+This document provides information about configuring Mirror Sessions and ACL rules for mirrorring on an interface  using the management framework based on current capabilities of SONiC.
 
 # Scope
 
