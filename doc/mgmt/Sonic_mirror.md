@@ -23,7 +23,7 @@ This document provides information about Mirror Session configuration and Mirror
 
 # Scope
 
-This document cover mirror session Configuration and show commands along with ip mirror Access list configuration and show commands
+This document cover mirror session configuration and show commands. It also covers ip mirror Access list configuration and show commands
 .
 
 # Definition/Abbreviation
@@ -36,6 +36,10 @@ This document cover mirror session Configuration and show commands along with ip
 This feature will allow the user to configure mirror session and ip mirror access list on an interface using SONiC Management Framework via CLI, REST or  gNMI. The underlying mirror session DB schema is already provided by mirror session support from SONiC.
 The mirror sessions created can then be associated to ip mirror access list and ACL rules can be configured to mirror selected packet only.
 The mirror access list can then be associated to interfaces for mirroring packets on that interface.
+
+Note: Currently the backend doesn't support changing mirror session parameters once created.
+Also certain parameters are required to create a mirror session as defined in the sonic yang for mirror session.
+
 
 ## 1.1 Requirements
 
@@ -65,7 +69,7 @@ Following new additions will be done:--
 2. Python script to handle CLI request (actioner)
 3. Jinja template to render CLI output (renderer)
 No changes expected in sonic yang model for MIRROR_SESSION_TABLE or ACL_TABLE or ACL_RULE_TABLE.
-Open-config acl yang will have a new ACL type to create ACL mirror table config DB.
+Open-config acl yang will have a new ACL type added to create ACL mirror table type in config DB.
 There will also be new extensions added to support ACL mirror as show below
 
 ```
@@ -158,11 +162,12 @@ https://github.com/project-arlo/sonic-mgmt-framework/blob/master/models/yang/son
 There will be three new CLIs added to support the full functionality in addition to show commands.
 
 #### 3.6.2.1 Configuration Commands
-All commands are executed in `configuration-view`:
+All commands are executed in configuration-view:
+```
 sonic# configure terminal
 
-
 sonic(config)#
+```
 #####  Add mirror session with the required parameters
 `
 monitor session <name> erpm source-ip <src-ip> destination-ip <dsp-ip>
@@ -171,14 +176,15 @@ monitor session <name> erpm source-ip <src-ip> destination-ip <dsp-ip>
 ```
 sonic(config)# monitor session mirror1 erpm source-ip 1.1.1.1 destination-ip 2.2.2.2
 ```
-:w
+
 #####  Add mirror session with required and optional  parameters
 `
 monitor session <session_name> erpm source-ip <src-ip> destination-ip <dsp-ip> ip-ttl <ttl> ip-dscp <dscp> queue < que> gre-protocol <id>
 `
 
 ```
-sonic(config)# mirror session add mir1 source-ip 1.1.1.1 destination-ip 2.2.2.2 ip-ttl 10 ip-dscp 10 queue 0 gre-protocol 0x6558
+sonic(config)# mirror session add mir1 source-ip 1.1.1.1 destination-ip 2.2.2.2 ip-ttl 10
+ip-dscp 10 queue 0 gre-protocol 0x6558
 ```
 #####  Delete mirror session
 
@@ -190,10 +196,10 @@ no monitor session <name>
 sonic(config)# no monitor session mirror1
 ```
 
-##### Update mirror session : there is no backend support to modify a mirror session.
-However the mirror orch-agent listens to change in neighbor information, next hop information in relation to reachability of  destination IP to update destination mac and destination port.
+##### Update mirror session : there is no backend support to modify a mirror session in orch-agent. This is an asked feature. The CLI to change mirror session will be provided if backend support is added.
+The mirror orch-agent listens to change in neighbor information, next hop information in relation to reachability of  destination IP to update destination mac and destination port.
 It also listens to the FDB entry change (one entry update) for destination MAC getting added on a member port (for vlan with ip) and LAG member addition ( for a lag with ip) to set correct destination MAC and
-destination port in SAI if the VLAN and LAG have destination IP as a neighbor.
+destination port in SAI if the VLAN and LAG have destination IP as a neighbor. Once a mirror session is created it's parameters cannot be altered.
 
 ```
 mirror session mirror1
@@ -259,12 +265,13 @@ The session id is required for mirror ip access-list.
 
 `
 seq <number> permit <other allowed ipv4 filters> capture <mirror session name>
-
 `
+
+
 
 ```
 sonic(config)# ip mirror-access-list al-mirror
-sonic(config-mirror-acl)# seq 2 permit tcp any src-eq 4096 any syn capture mir1
+sonic(config-ipv4-mirror-acl)# seq 2 permit tcp any src-eq 4096 any syn capture mir1
 ```
 
 
@@ -274,7 +281,7 @@ no <sequence no>
 `
 ```
 sonic(config)# ip mirror-access-list al-mirror
-sonic(config-mirror-acl)# no seq 2
+sonic(config-ipv4-mirror-acl)# no seq 2
 ```
 
 #### Delete a mirror ACL table and its rules
