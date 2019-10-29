@@ -114,19 +114,23 @@ A variety of authentication methods must be supported:
   - Public-key Authentication
 * **REST** authentication
   - Password-based Authentication with JWT token-based authentication
-
-(TODO/DELL: Add REST certificate-based authentication if we need it for the CLI to authenticate to the REST server. In the event that certificate-based authentication is needed, the REST server must be enhanced to accept all types of authentication concurrently)
-
+  - Certificate-based Authentication with JWT token-based authentication
+  - The REST server must be enhanced to accept all types of authentication concurrently
 * **gNMI** Authentication
   - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
 
 #### 1.1.1.2 CLI Authentication to REST server
-Given that the CLI module works by issuing REST transactions to the Management Framework's REST server, the CLI module must also be able to authenticate with the REST server when REST authentication is enabled. This can be accomplished via several approaches:
-1. **UNIX Socket** -- Since a user accessing the CLI has already been authenticated, the CLI module can communicate with the REST server via a UNIX socket. This UNIX socket is accessed as `root`, will not enforce any authentication methods, and is solely intended for use between CLI and REST server, so care must be taken to ensure that it is not remotely accessible by any indirect means. The user must also not be allowed to escalate their own privileges or execute unauthorized commands; this includes dropping into the Bash shell and executing commands from there. Additionally, the username of the CLI user must be shared between the CLI and the REST server, so that the REST server can further relay this information to Translib for RBAC enforcement. Note that this approach is still being researched, and (at first glance) a significant portion of custom code will need to be implemented.
-2. **Self-Signed Certificates** -- As a user authenticates with SSH and is given access to the CLI shell, a script runs to generate a self-signed certificate associated with the user. Alternatively, the user's self-signed certificate may be generated when the user is "created" on the system. The user's information is embedded in the Subject field of the certificate, and then the certificate is installed in a static location (i.e., trust store). The CLI authenticates to the REST server with the same certificate, which is accepted because the REST server trusts all certificates installed in the static location. This approach is not as performant as the UNIX socket approach, but has the advantage of allowing the REST server to treat all incoming connections the same way, regardless of the client being a REST endpoint or the CLI module.
-
-(TODO/DELL: Finalize on one of the above methods, then revise the document)
+Given that the CLI module works by issuing REST transactions to the Management Framework's REST server, the CLI module must also be able to authenticate with the REST server when REST authentication is enabled. This can be accomplished via the following steps:
+1. When a user is created on the system, a self-signed certificate is generated with the username embedded into the Subject field. That self-signed certificate will be stored in the user's home directory, with access permissions limited to that user only. The self-signed certificate will be used for mutual authentication from the KLISH shell to the REST server.
+**Design note:** Certificate-based authentication is desired over password-based authentication for the CLI-to-REST connection because it prevents the need to store and forward any plaintext passwords. Per-user certificates with strict file permissions are desired so as to ensure that users cannot drop into the Linux shell and perform operations as other than themselves (e.g., via `curl` with a shared certificate, or someone else's certificate).
+2. When a user logs into the switch, the switch will authenticate the user by using the username and password credentials.
+3. When the KLISH process is started, its UID and GID are set to those of the user that was authenticated by `sshd` or `login` (as through the console).
+4. When the KLISH shell is spawned, it will create a persistent, local HTTP connection over an internal TCP connection, and send the REST request to authenticate this KLISH session as the logged-in user, which can be looked up through NSS by using `getpwuid()`. This request will contain the user's client certificate.
+5. The REST server will authenticate the user and return a token with the username encoded in it. The KLISH CLI must cache this token and use it for all future requests from this KLISH session. The REST server will also maintain this token to username mapping with it so as to identify all future requests as well. This will also allow the REST server in creating AuditLogs for all the requests sent from KLISH, as well as pass the username to Translib for RBAC enforcement.
+6. KLISH CLI session will store the authentication token, and from then on, KLISH CLI will send REST request using the persistent connection with the authentication token in the HTTP header to the REST server for all the CLI commands.
+7. The KLISH session must be able to cleanly handle ctrl-c breaks while it is busy waiting on a response from the REST server.
+8. When the user exits the KLISH CLI session, the HTTP persistent connection is closed. The REST server will clean up the corresponding authentication token for its corresponding KLISH CLI Client.
 
 #### 1.1.1.3 Translib Enforcement of RBAC
 The Translib module in the [management framework](https://github.com/project-arlo/SONiC/blob/master/doc/mgmt/Management%20Framework.md) is a central point for all commands, regardless of the interface (CLI, REST, gNMI). Therefore, the RBAC enforcement will be done in Translib library.
@@ -136,7 +140,11 @@ The CLI, REST, and gNMI will result in Translib calls with xpath and payload. A
 At bootup time of the manageability framework (or gNMI container), it is recommended to cache the [User DB](#326-user-db) if not already cached. This is because every command needs to access the information in the User DB in order to access the information. Alternately, instead of caching the entire User DB, the information can be cached once the record is read from the DB. Additionally, the Translib must listen to change notifications on the User DB in order to keep its cache current.
 
 As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use Linux commands on the Linux shell and create users and Linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the Linux `/etc/passwd` file in sync, Translib must register for notification for changes on `/etc/passwd` file. If there is no straightforward way of doing so, then a function must be triggered on timer expiry to proactively read the `/etc/passwd` file and update the User DB.
+
 (TODO/Dell - Please update what is the approach followed).
+
+(NOTE/DELL - Assuming there is a process, which may or may not be separate from Translib, it can use the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
+Another approach would be to have a process started by `systemd` on changes to `/etc/passwd`, `/etc/shadow`, or `/etc/group`, and that process would simply reconcile the Redis DB with what is found found in those files. `systemd` allows starting processes based on file create/delete/modify)
 
 Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` file.
 This way, the User DB information and the linux groups information is always in sync.
@@ -163,14 +171,12 @@ The gNMI server must implement a method by which a username can be determined fr
 
 Users must be informed by way of documentation so that they know how to manage their certificate infrastructure in order to properly facilitate gNMI communication.
 
-If certificate-based authentication is implemented for the REST server, it must use the same certificate scheme as the gNMI server to validate client certificates.
+The REST server must use the same certificate scheme as the gNMI server to validate client certificates.
 
 #### 1.1.1.6 Local User Management
 An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators (with the appropriate role) must be able to add/delete users, modify users' passwords, and modify users' roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
 
 Additionally, users created via the NBIs must be stored in the Redis DB and synced with the Linux user database in `/etc/passwd` and `/etc/shadow`. Likewise, users created in Linux via `useradd` (or modified via `usermod` or `passwd`) must be synced to the Redis DB as well.
-
-
 
 ### 1.1.2 Configuration and Management Requirements
 An interface and accompanying CLI must be developed for local user management. Local users should be configurable like any other feature: via CLI, REST, and gNMI. Additionally, users may also be created and managed via Linux commands in the Bash shell. This will add additional complexity and require a service to sync between the Redis DB and the Linux user database.
