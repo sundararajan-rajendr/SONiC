@@ -170,20 +170,20 @@ sonic(config)#
 ```
 #####  Add mirror session with the required parameters
 `
-monitor session <name> erpm source-ip <src-ip> destination-ip <dsp-ip>
+monitor session <name> erspan source-ip <src-ip> destination-ip <dsp-ip>
 `
 
 ```
-sonic(config)# monitor session mirror1 erpm source-ip 1.1.1.1 destination-ip 2.2.2.2
+sonic(config)# monitor session mirror1 erspan source-ip 1.1.1.1 destination-ip 2.2.2.2
 ```
 
 #####  Add mirror session with required and optional  parameters
 `
-monitor session <session_name> erpm source-ip <src-ip> destination-ip <dsp-ip> ip-ttl <ttl> ip-dscp <dscp> queue < que> gre-protocol <id>
+monitor session <session_name> erspan source-ip <src-ip> destination-ip <dsp-ip> ip-ttl <ttl> ip-dscp <dscp> queue < que> gre-protocol <id>
 `
 
 ```
-sonic(config)# mirror session add mir1 source-ip 1.1.1.1 destination-ip 2.2.2.2 ip-ttl 10
+sonic(config)# monitor session mir1 erspan source-ip 1.1.1.1 destination-ip 2.2.2.2 ip-ttl 10
 ip-dscp 10 queue 0 gre-protocol 0x6558
 ```
 #####  Delete mirror session
@@ -202,7 +202,7 @@ It also listens to the FDB entry change (one entry update) for destination MAC g
 destination port in SAI if the VLAN and LAG have destination IP as a neighbor. Once a mirror session is created it's parameters cannot be altered.
 
 ```
-mirror session mirror1
+monitor session mirror1
 
    list of configurable parameters based on backend Support
 ```
@@ -217,7 +217,7 @@ show monitor session
 ```
 sonic(config)# show monitor session
 
-mirror session mir1
+session mir1
 source-ip 1.1.1.1
 destination-ip 2.2.2.2
 ip-dscp 20
