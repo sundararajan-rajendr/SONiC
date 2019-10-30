@@ -67,6 +67,7 @@
 | Rev |     Date    |       Author       | Change Description                |
 |:---:|:-----------:|:------------------:|-----------------------------------|
 | 0.1 | 10/22/2019  |   Jeff Yin      | Initial version                   |
+| 0.2 | 10/30/2019  |   Jeff Yin      | Revision after joint review with Broadcom/Dell |
 
 # About this Manual
 This document provides a high-level design approach for authentication and RBAC in the SONiC Management Framework.
@@ -127,7 +128,7 @@ Given that the CLI module works by issuing REST transactions to the Management F
 2. When a user logs into the switch, the switch will authenticate the user by using the username and password credentials.
 3. When the KLISH process is started, its UID and GID are set to those of the user that was authenticated by `sshd` or `login` (as through the console).
 4. When the KLISH shell is spawned, it will create a persistent, local HTTP connection over an internal TCP connection, and send the REST request to authenticate this KLISH session as the logged-in user, which can be looked up through NSS by using `getpwuid()`. This request will contain the user's client certificate.
-5. The REST server will authenticate the user and return a token with the username encoded in it. The KLISH CLI must cache this token and use it for all future requests from this KLISH session. The REST server will also maintain this token to username mapping with it so as to identify all future requests as well. This will also allow the REST server in creating AuditLogs for all the requests sent from KLISH, as well as pass the username to Translib for RBAC enforcement.
+5. The REST server will authenticate the user and return a token with the username encoded in it. The KLISH CLI must cache this token and use it for all future requests from this KLISH session. The REST server will also maintain this token to username mapping with it so as to identify all future requests as well. This will also allow the REST server in creating audit logs for all the requests sent from KLISH, as well as pass the username to Translib for RBAC enforcement.
 6. KLISH CLI session will store the authentication token, and from then on, KLISH CLI will send REST request using the persistent connection with the authentication token in the HTTP header to the REST server for all the CLI commands.
 7. The KLISH session must be able to cleanly handle ctrl-c breaks while it is busy waiting on a response from the REST server.
 8. When the user exits the KLISH CLI session, the HTTP persistent connection is closed. The REST server will clean up the corresponding authentication token for its corresponding KLISH CLI Client.
@@ -141,16 +142,13 @@ At bootup time of the manageability framework (or gNMI container), it is recomme
 
 As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use Linux commands on the Linux shell and create users and Linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the Linux `/etc/passwd` file in sync, Translib must register for notification for changes on `/etc/passwd` file. If there is no straightforward way of doing so, then a function must be triggered on timer expiry to proactively read the `/etc/passwd` file and update the User DB.
 
-(TODO/Dell - Please update what is the approach followed).
-
-(NOTE/DELL - Assuming there is a process, which may or may not be separate from Translib, it can use the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
-Another approach would be to have a process started by `systemd` on changes to `/etc/passwd`, `/etc/shadow`, or `/etc/group`, and that process would simply reconcile the Redis DB with what is found found in those files. `systemd` allows starting processes based on file create/delete/modify)
+Translib -- or a separate process -- can use the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
+Another approach would be to have a process started by `systemd` on changes to `/etc/passwd`, `/etc/shadow`, or `/etc/group`, and that process would simply reconcile the Redis DB with what is found found in those files. `systemd` allows starting processes based on file create/delete/modify.
 
 Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` file.
 This way, the User DB information and the linux groups information is always in sync.
 
 Since Translib is the main authority on authorized operations, this means that the NBIs cannot render to the user what they are and are not allowed to do. The CLI, therefore, renders the entire command tree to a user, even the commands they are not authorized to execute.
-
 
 #### 1.1.1.4 Linux Groups
 RBAC will be facilitated via Linux Groups:
@@ -259,6 +257,8 @@ A new DB will be introduced in Redis which maintains RBAC related tables in it. 
     * *role* : This specifies the role associated with the username in the tenant. This is a comma separated list of strings.
     The UserTable is keyed on <***user, tenant***>.
 
+  **Note**: The UserTable will _not_ store users' salted+hashed passwords due to security concerns surrounding access restrictions to the DB; instead, that information will be maintained in `/etc/shadow` as per Linux convention.
+
 * **PrivilegeTable**
 
   This table has provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
@@ -288,8 +288,6 @@ A new DB will be introduced in Redis which maintains RBAC related tables in it. 
     * *instances* : The instances of the *resource* allocated to this *tenant*. This is a list of instances.
   The TenantTable is keyed on <***resource, tenant***>
 
-(QUESTION/BRCM: Could we also store salted+hashed user passwords in User Table, so that we can manage that info via configuration? Alternatively, we could create configDB schema that incorporates username, salted+hashed password, and role.)
-
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
 N/A
@@ -313,9 +311,10 @@ TBD from developer
 Users may be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc. They may also be managed via configuration.
 
 ##### username
-`username <name> password <password-string> role {admin | operator}` -- Configures a user on the system with a given name, password, and role.
+`username <name> password <password-string> role <role-string>` -- Configures a user on the system with a given name, password, and role.
 * **name** is a text string of 1-32 alphanumeric characters
 * **password-string** is a text string of 1-32 alphanumeric characters
+* **role-string** is a text string consisting of a role name. In the initial release, the user is recommended to use "admin" and "operator" roles, as other roles will not be supported. A text string is desired instead of keywords so that in the future, more roles may be implemented and expanded.
 * Configuring another a user with the same **name** should result in modification of the existing user.
 
 `no username <name>` -- Deletes a user from the system.
@@ -331,7 +330,7 @@ N/A
 N/A
 
 ### 3.6.3 REST API Support
-N/A -- Allowing REST authentication to be configured via the REST API itself will introduce additional test complexities and/or non-deterministic behavior.
+Ability to configure local users via REST API.
 
 # 4 Flow Diagrams
 N/A
@@ -341,7 +340,7 @@ N/A
 The REST server should return standard HTTP errors when authentication fails or if the user tries to access a forbidden resource or perform an unauthorized activity.
 
 ## 5.2 gNMI server
-The gNMI server should return standard gRPC errors when authentication fails. (Question: Does gRPC have "standard" errors for authorization failures?)
+The gNMI server should return standard gRPC errors when authentication fails.
 
 ## 5.3 CLI
 Authentication errors will be handled by SSH. However, the CLI must gracefully handle authorization failures from the REST server (the authorization failure would originate from Translib of course). While the CLI will render all of the available commands to a user, the user will actually only be able to execute a subset of them. This limitation is a result of the design decision to centralize RBAC in Translib. Nevertheless, the CLI must inform the user when they attempt to execute an unauthorized command.
