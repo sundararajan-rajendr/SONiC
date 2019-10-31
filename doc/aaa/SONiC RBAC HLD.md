@@ -15,7 +15,7 @@
       - [1.1.1.3 Translib Enforcement of RBAC](#1113-translib-enforcement-of-rbac)
       - [1.1.1.4 Linux Groups](#1114-linux-groups)
       - [1.1.1.5 Certificate-based Authentication for gNMI and REST](#1115-certificate-based-authentication-for-gnmi-and-rest)
-      - [1.1.1.6 Local User Management](#1116-local-user-management)
+      - [1.1.1.6 Local User Management and UserDB Sync](#1116-local-user-management-and-userdb-sync)
     + [1.1.2 Configuration and Management Requirements](#112-configuration-and-management-requirements)
     + [1.1.3 Scalability Requirements](#113-scalability-requirements)
       - [1.1.3.1 REST Server](#1131-rest-server)
@@ -140,13 +140,7 @@ The CLI, REST, and gNMI will result in Translib calls with xpath and payload. A
 
 At bootup time of the manageability framework (or gNMI container), it is recommended to cache the [User DB](#326-user-db) if not already cached. This is because every command needs to access the information in the User DB in order to access the information. Alternately, instead of caching the entire User DB, the information can be cached once the record is read from the DB. Additionally, the Translib must listen to change notifications on the User DB in order to keep its cache current.
 
-As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use Linux commands on the Linux shell and create users and Linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the Linux `/etc/passwd` file in sync, Translib must register for notification for changes on `/etc/passwd` file. If there is no straightforward way of doing so, then a function must be triggered on timer expiry to proactively read the `/etc/passwd` file and update the User DB.
-
-Translib -- or a separate process -- can use the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
-Another approach would be to have a process started by `systemd` on changes to `/etc/passwd`, `/etc/shadow`, or `/etc/group`, and that process would simply reconcile the Redis DB with what is found found in those files. `systemd` allows starting processes based on file create/delete/modify.
-
-Similarly, a user can be created either via CLI or REST. It is the responsibility of the Translib to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` file.
-This way, the User DB information and the linux groups information is always in sync.
+As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcement of the users and roles in Linux will be done via the Linux groups. A user can use Linux commands on the Linux shell and create users and Linux groups (which represent the roles). This will mean that the information in the User DB is no longer current. In order to keep the information in the User DB and the Linux `/etc/passwd` file in sync, a service must run on the host (not the container) to keep the databases in sync.
 
 Since Translib is the main authority on authorized operations, this means that the NBIs cannot render to the user what they are and are not allowed to do. The CLI, therefore, renders the entire command tree to a user, even the commands they are not authorized to execute.
 
@@ -171,10 +165,12 @@ Users must be informed by way of documentation so that they know how to manage t
 
 The REST server must use the same certificate scheme as the gNMI server to validate client certificates.
 
-#### 1.1.1.6 Local User Management
+#### 1.1.1.6 Local User Management and UserDB Sync
 An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators (with the appropriate role) must be able to add/delete users, modify users' passwords, and modify users' roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
 
-Additionally, users created via the NBIs must be stored in the Redis DB and synced with the Linux user database in `/etc/passwd` and `/etc/shadow`. Likewise, users created in Linux via `useradd` (or modified via `usermod` or `passwd`) must be synced to the Redis DB as well.
+Additionally, users created via the NBIs must be stored in the Redis DB and synced with the Linux user database in `/etc/passwd` and `/etc/shadow`. Likewise, users created in Linux via `useradd` (or modified via `usermod` or `passwd`) must be synced to the Redis User DB as well (See section 3.2.6 for info on the UserDB).
+
+To facilitate the sync between users in the UserDB and with users in Linux, a service must run on the host that listens for both changes to `/etc/passwd` and changes to UserDB, since users can be created via either interface (UserDB via NBIs / Linux commands).
 
 ### 1.1.2 Configuration and Management Requirements
 An interface and accompanying CLI must be developed for local user management. Local users should be configurable like any other feature: via CLI, REST, and gNMI. Additionally, users may also be created and managed via Linux commands in the Bash shell. This will add additional complexity and require a service to sync between the Redis DB and the Linux user database.
@@ -296,7 +292,13 @@ N/A
 N/A
 
 ## 3.4 SyncD
-N/A
+To facilitate the sync between users in the UserDB and with users in Linux, a service must run on the host that listens for both changes to `/etc/passwd` and changes to UserDB, since users can be created via either interface (UserDB via NBIs / Linux commands).
+
+This service runs a process that uses the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
+Another approach would be to have a process started by `systemd` on changes to `/etc/passwd` or `/etc/group`, and that process would simply reconcile the Redis DB with what is found in those files. `systemd` allows starting processes based on file create/delete/modify.
+
+A user can be created either via CLI or REST. It is the responsibility of this service to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` and `/etc/groups` files.
+This way, the User DB information and the Linux groups information is always in sync.
 
 ## 3.5 SAI
 N/A
