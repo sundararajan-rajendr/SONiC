@@ -1,5 +1,5 @@
 # Feature Name
-Implement management support using CLI/REST/gNMI SONiC interfaces for Configuration Management Operations.
+Implement management support using CLI/REST/gNOI interfaces for Configuration Management Operations.
 
 # High Level Design Document
 #### Rev 0.1
@@ -17,20 +17,19 @@ Implement management support using CLI/REST/gNMI SONiC interfaces for Configurat
 # Revision
 | Rev |     Date    |       Author       | Change Description                |
 |:---:|:-----------:|:------------------:|-----------------------------------|
-| 0.1 | 10/14/2019  |  Bhavesh Nisar      | Initial version                  |
+| 0.1 | 10/30/2019  |  Bhavesh Nisar     | Initial version                   |
 
 # About this Manual
 This document provides information on the management interfaces for Configuration Management Operations.
 # Scope
-The scope of this document is limited to the northbound interfaces supported by the new management framework interface. These are the CLI, gNMi and REST interface. The backend functional behavior of the operations is not modified and can be referred in the SONic Documents.
-
+The scope of this document is limited to the northbound interfaces supported by the new management framework, i.e., CLI, gNOI and REST. The functional behavior of these operations is not modified and can be referred in the SONiC Documents.
 
 # Definition/Abbreviation
 
 ### Table 1: Abbreviations
 | **Term**                 | **Meaning**                         |
 |--------------------------|-------------------------------------|
-| NBI                      | North Bound Interface                    |
+| NBI                      | North Bound Interface               |
 
 # 1 Feature Overview
 
@@ -40,48 +39,40 @@ Their is no openconfig data yang defined for this feature. A new SONiC yang will
 ## 1.1 Requirements
 
 ### 1.1.1 Functional Requirements
+Not Applicable
 
 ### 1.1.2 Configuration and Management Requirements
 
-CLI Commands
-1. Command : config reload
-   Attributes: file path
-   Validation failure message: Invalid value for "filename": Path "/etc/config/config_db2.json" does not exist.
-   Prompt message: Clear current config and reload config from the file /etc/sonic/config_db.json? [y/N]:
-   Help: Clear current configuration and import a previous saved config DB dump
-         file.
+Operations:
+1. Save running configuration.  
+   CLI Command : write memory  
+   EXEC Level  
+   Parameter: filename  
+   Default: /etc/sonic/config_db.json  
 
+2. Copy config to redis:configDB and reload.  
+   CLI Command : copy-to-running-config  
+   EXEC Level  
+   Parameter: filename  
+   Default: /etc/sonic/config_db.json  
 
-2. Command : config save
-   Attributes: file Path
-   Prompt Message: Existing file will be overwritten, continue? [y/N]
-   Help: Export current config DB to a file on disk.
+3. Update config to redis:configDB.  
+   CLI Command: update-to-running-config  
+   EXEC Level  
+   Parameter: filename  
+   Default: /etc/sonic/config_db.json  
 
-3. Command: config load
-   Attributes: file Path
-   Validation: Invalid value for "filename": Path "/etc/config/config_db2.json"  does not exist.
-   Prompt message: Load config from the file /etc/sonic/config_db.json? [y/N]:
-   Help: Import a previous saved config DB dump file.
-
-4. Command: config load_mgmt_config
-   Attributes: file path
-   Validation: Error: Invalid value for "filename": Path "hello" does not exist.
-   Invalid value for "filename": Path "/etc/sonic/device_desc.xml" does not  exist.
-   Help: Reconfigure hostname and mgmt interface based on device description file.
-
-5. Command: config load_minigraph
-   Validation: IOError: Error reading file '/etc/sonic/minigraph.xml': failed to load external entity "/etc/sonic/minigraph.xml"
-   Prompt Message: Reload config from minigraph? [y/N]: y
-   Help: Reconfigure based on minigraph.
-
+The click CLI additionally supports 'config load_mgmt' and 'config load_minigraph' commands. These operations are SONiC specific. The new sonic management framework will handle the management interface related configuration through the NBI interface. The current json format of configDB replaces the xml format of minigraph.
 
 ### 1.1.3 Scalability Requirements
-key scaling factors
+Not Applicable
+
 ### 1.1.4 Warm Boot Requirements
+Not Applicable
 
 ## 1.2 Design Overview
 ### 1.2.1 Basic Approach
-
+The operations are invoked via RPC construct of the yang interface. The sonic management framework callback is defined in the sonic-annotation.yang file. The operations are executed on the host service via the dBus framework.
 
 ### 1.2.2 Container
 This feature is contained within the sonic-mgmt-framework container.
@@ -91,12 +82,14 @@ Not Applicable.
 
 # 2 Functionality
 ## 2.1 Target Deployment Use Cases
-Wordy description, with diagrams if possible
+Not Applicable
+
 ## 2.2 Functional Description
-Wordy description
+Not Applicable
 
 # 3 Design
 ## 3.1 Overview
+Not Applicable
 
 ## 3.2 DB Changes
 Describe changes to existing DBs or any new DB being added.
@@ -109,28 +102,24 @@ Describe changes to existing DBs or any new DB being added.
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
 ### 3.3.2 Other Process
-Describe changes to other process within SwSS if applicable.
+Not Applicable
 
 ## 3.4 SyncD
-Describe changes to syncd if applicable.
+Not Applicable
 
 ## 3.5 SAI
-Describe [new/existing] SAI APIs used by this feature.
+Not Applicable
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
 
 A new sonic yang (sonic-config-mgmt.yang) provides the interface for configuration and status.
 
+```
 module: sonic-config-mgmt
 
 rpcs:
   +---x save_config
-  |  +---w input
-  |  |  +---w file_path?   string
-  |  +--ro output
-  |     +--ro status?   string
-  +---x load_config
   |  +---w input
   |  |  +---w file_path?   string
   |  +--ro output
@@ -140,24 +129,24 @@ rpcs:
   |  |  +---w file_path?   string
   |  +--ro output
   |     +--ro status?   string
-  +---x load_mgmt_config
+  +---x load_config
   |  +---w input
   |  |  +---w file_path?   string
   |  +--ro output
   |     +--ro status?   string
-  +---x load_minigraph
-     +---w input
-     |  +---w file_path?   string
-     +--ro output
-        +--ro status?   string
 
+```
 
 ### 3.6.2 CLI
 #### 3.6.2.1 Configuration Commands
-#### 3.6.2.2 Show Commands
+As described in section 1.1.2
 
+#### 3.6.2.2 Show Commands
+Not Applicable
 
 #### 3.6.2.3 Debug Commands
+Not Applicable
+
 #### 3.6.2.4 IS-CLI Compliance
 The following table maps SONIC CLI commands to corresponding IS-CLI commands. The compliance column identifies how the command comply to the IS-CLI syntax:
 
@@ -165,13 +154,11 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 - **IS-CLI-like**  – meaning that the exact format of the IS-CLI command could not be followed, but the command is similar to other commands for IS-CLI (e.g. IS-CLI may not offer the exact option, but the command can be positioned is a similar manner as others for the related feature).
 - **SONIC** - meaning that no IS-CLI-like command could be found, so the command is derived specifically for SONIC.
 
-|       CLI Command       | Compliance | click CLI
-|:-----------------------:|:-----------|-----------
-| config save             | SONIC      |  config save
-| config load             | SONIC      |  config load
-| config reload           | SONIC      |  config reload
-| config load-mgmt-config | SONIC      |  config load_mgmt_config
-| config load-minigraph   | SONIC      |  config load_minigraph
+|       CLI Command       | Compliance   | click CLI                    | Deviation
+|:-----------------------:|:-------------|------------------------------|---------------
+| write memory            | IS-CLI-like  |  config save                 |
+| copy-to-running-config  |              |  config reload               | This incorporates copy and restart of services.
+| update-to-running-config|              |  config load                 | This does an update to running config.
 
 **Deviations from IS-CLI:** If there is a deviation from IS-CLI, Please state the reason(s).
 
@@ -196,11 +183,8 @@ Describe key scaling factor and considerations.
 
 # 9 Unit Test
 List unit test cases added for this feature including warm boot.
-1. Execute command 'config save'. Default path applied. Verify configdb.json file.
-2. Execute 'config save' with filepath. Verify config saved in the given filepath.
-2. Execute 'config load'. Verify config loaded in config Db.
-3. Execute 'config load' with filepath. Verify config loaded in config Db.
-3. Execute 'config reload'. Verify configdb reset with new loaded config from configDb.json.
-4. Execute 'config load-mgmt-config'. Verify mgmt-config loaded into Db.
-5. Execute 'config load-mgmt-config' with filepath. Verify mgmt-config loaded into Db
-5. Execute 'config load minigraph'. Verify config loaded into Db.
+CLI test cases
+1. Execute 'write memory'. Default path applied. Verify config_db.json file.
+2. Execute 'write memory' with filepath. Verify config saved in the given filepath.
+3. Execute 'copy-to-running-config'. Verify default config loaded in redis:configDB with reload.
+4. Execute 'update-to-running-config' with filepath. Verify config loaded in redis:configDB with reload.
