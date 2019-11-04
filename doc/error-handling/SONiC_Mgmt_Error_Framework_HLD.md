@@ -1,5 +1,5 @@
 # Feature Name
-Implement management support using CLI/REST/gNMI SONiC management framework interfaces for Error Handling Framework.
+Implement management support using CLI/REST/gNMI SONiC interfaces for Error Handling Framework.
 
 # High Level Design Document
 #### Rev 0.1
@@ -22,9 +22,9 @@ Implement management support using CLI/REST/gNMI SONiC management framework inte
 # About this Manual
 This document provides information about the management interfaces for Error Handling Framework.
 # Scope
-The  scope of this document is within the bounds of the functionality provided by the new SONiC Management Framework. It gives a High Level Design of the north-bound interfaces for managing Error Handling framework.
-For reference to the new Management Framework refer to https://github.com/project-arlo/SONiC/blob/master/doc/mgmt/Management%20Framework.md.
-This document also does not discuss the workings of the Error Handling feature. It can be referred at
+The  scope of this document is within the bounds of the functionality provided by the SONiC Management Framework. It gives a high level design of the north-bound interfaces for managing Error Handling framework. <br>
+For reference to the new Management Framework refer to https://github.com/project-arlo/SONiC/blob/master/doc/mgmt/Management%20Framework.md <br>
+This document does not discuss the workings of the Error Handling feature. This can be referred at <br>
 https://github.com/Azure/SONiC/blob/b8816dfac04b17e0e7bc7a68361e4feab1ae47c5/doc/error-handling/error_handling_design_spec.md
 
 # Definition/Abbreviation
@@ -32,17 +32,17 @@ https://github.com/Azure/SONiC/blob/b8816dfac04b17e0e7bc7a68361e4feab1ae47c5/doc
 ### Table 1: Abbreviations
 | **Term**                 | **Meaning**                         |
 |--------------------------|-------------------------------------|
-| NBI                      | North Bound Interface                    |
+| NBI                      | North Bound Interface               |
 
 # 1 Feature Overview
 
-The feature addresses the north-bound interfaces (CLI/REST/gNMI) for configuring  and fetching the data from the back-end to the user using SONiC managment framework.  The  implementation is contained within the Management Framework container.
+The feature addresses the north-bound interfaces (CLI/REST/gNMI) for configuring  and fetching the data from the back-end to the user using SONiC managment framework. The  implementation is contained within the Management Framework container.
 
 Their is no openconfig data yang defined for this feature. A new SONiC yang will be introduced for the NBI.
 
 The following operations will be exposed by the SONiC yang interface:
-1. Get errors from Db.
-2. Clear error tables in Db.
+1. Get errors from redis:ErrorDB.
+2. Clear error tables in redis:ErrorDB.
 
 ## 1.1 Requirements
 The requirements for the feature are derived from the Error Handling Framework Specification.
@@ -56,25 +56,27 @@ Provide yang interface for REST and CLI commands for feature configuration and m
 - CLI commands
 
 Mode: Show
-1. show error-database table <table-name>
-2. show error-database <CR>
+1. show error-database \[*tablename*\] <br>
+  Parameter: *tablename*: ERROR_NEIGH_TABLE, ERROR_ROUTE_TABLE <br>
 
 Mode: Configuration
-1. no error-database table <table-name>
-2. no error-database
+1. no error-database \[*table-name*\] <br>
+  Parameter: *tablename*: ERROR_NEIGH_TABLE, ERROR_ROUTE_TABLE <br>
 
-- REST support
-- gNMI support
+
+REST support
+gNMI support for show errors tables.
 
 
 ### 1.1.3 Scalability Requirements
-key scaling factors
+Not Applicable
 ### 1.1.4 Warm Boot Requirements
+Not Applicable
 
 ## 1.2 Design Overview
 ### 1.2.1 Basic Approach
 The 'show' command will fetch the error table information from ErrorDB(8). This is through yang show construct.
-The 'clear error-database <table>'' is handle through yang rpc construct. It provides the mechanism to register a callback. The callback will send notification to ErrorDb subscribers, which in response will clear the tables.
+The 'clear error-database [*tablename*]' is handle through yang rpc construct. It provides the mechanism to register a callback. The callback will send notification to ErrorDB subscribers, which in response will clear the tables.
 
 ### 1.2.2 Container
 This feature is contained within the sonic-mgmt-framework container.
@@ -84,37 +86,29 @@ Not Applicable.
 
 # 2 Functionality
 ## 2.1 Target Deployment Use Cases
-Wordy description, with diagrams if possible
+Not applicable
 ## 2.2 Functional Description
 Wordy description
 
 # 3 Design
 ## 3.1 Overview
-
+Not applicable.
 ## 3.2 DB Changes
-Describe changes to existing DBs or any new DB being added.
-### 3.2.1 CONFIG DB
-### 3.2.2 APP DB
-### 3.2.3 STATE DB
-### 3.2.4 ASIC DB
-### 3.2.5 COUNTER DB
-
+Not applicable.
 ## 3.3 Switch State Service Design
-### 3.3.1 Orchestration Agent
-### 3.3.2 Other Process
-Describe changes to other process within SwSS if applicable.
+Not applicable.
 
 ## 3.4 SyncD
-Describe changes to syncd if applicable.
+Not applicable.
 
 ## 3.5 SAI
-Describe [new/existing] SAI APIs used by this feature.
+Not applicable.
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
 
 A new sonic yang (sonic-error.yang) provides the interface for configuration and status.
-
+```
 module: sonic-error
     +--rw sonic-error
        +--rw ERROR_NEIGH_TABLE
@@ -139,30 +133,70 @@ module: sonic-error
        |  +---w tablename?   string
        +--ro output
           +--ro status?   string
-
+```
 
 ### 3.6.2 CLI
 #### 3.6.2.1 Configuration Commands
 #### 3.6.2.2 Show Commands
+```
+sonic# show error-database
+  ERROR_NEIGH_TABLE  Show error neighbor table
+  ERROR_ROUTE_TABLE  Show error route table
+  <cr>
+
 sonic# show error-database
 
-ERROR ROUTE TABLE
+------------------------------
+ERROR_ROUTE_TABLE
+------------------------------
 Route      : 20.20.20.0/24
 Operation  :  create
-----------------------------------
+------------------------------
 Route      : 30.20.20.0/24
 Operation  :  create
-----------------------------------
+------------------------------
 Route      : 31.20.20.0/24
 Operation  :  create
-----------------------------------
-
-ERROR NEIGHBOR TABLE
-----------------------------------
+------------------------------
+------------------------------
+ERROR_NEIGH_TABLE
+------------------------------
 Interface  : Ethernet36
 Prefix     : 2.2.2.2/24
 Operation  : create
-----------------------------------
+------------------------------
+
+sonic#
+sonic# show error-database ERROR_NEIGH_TABLE
+------------------------------
+ERROR_NEIGH_TABLE
+------------------------------
+Interface  : Ethernet36
+Prefix     : 2.2.2.2/24
+Operation  : create
+------------------------------
+sonic# show error-database ERROR_ROUTE_TABLE
+
+------------------------------
+ERROR_ROUTE_TABLE
+------------------------------
+Route      : 20.20.20.0/24
+Operation  :  create
+------------------------------
+Route      : 30.20.20.0/24
+Operation  :  create
+------------------------------
+Route      : 31.20.20.0/24
+Operation  :  create
+------------------------------
+
+
+sonic(config)# no error-database
+  ERROR_NEIGH_TABLE  Delete error neighbor table
+  ERROR_ROUTE_TABLE  Delete error route table
+  <cr>
+```
+
 
 #### 3.6.2.3 Debug Commands
 #### 3.6.2.4 IS-CLI Compliance
@@ -182,26 +216,26 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 
 
 ### 3.6.3 REST API Support
-Rest API support is through
+Rest API support is through the yang interface.
 
 # 4 Flow Diagrams
 Provide flow diagrams for inter-container and intra-container interactions.
 
 # 5 Error Handling
-Provide details about incorporating error handling feature into the design and functionality of this feature.
+Not applicable.
 
 # 6 Serviceability and Debug
-Logging, counters, stats, trace considerations. Please make sure you have incorporated the debugging framework feature. e.g., ensure your code registers with the debugging framework and add your dump routines for any debug info you want to be collected.
+Not applcable.
 
 # 7 Warm Boot Support
-Describe expected behavior and any limitation.
+Not applicable.
 
 # 8 Scalability
-Describe key scaling factor and considerations.
+Not applicable.
 
 # 9 Unit Test
 List unit test cases added for this feature including warm boot.
 1. Execute CLI 'show error-database'. Add data to ErrorDB|Routetable, NeighborTable. Verify all errors are fetched from DB and rendered on CLI.
-2. Execute CLI 'show error-database table <tablename>'. Verify only specific table data is retrieved from database.
+2. Execute CLI 'show error-database [*tablename*]'. Verify only specific table data is retrieved from database.
 3. Execute CLI 'clear error-database'. Verify all table entries in ErrorDB are deleted.
-4. Execute CLI 'clear error-database table <tablename>'. Verify table is delete from ErrorDb.
+4. Execute CLI 'clear error-database [*tablename*]'. Verify table is delete from ErrorDB.
