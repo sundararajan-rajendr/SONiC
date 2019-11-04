@@ -44,23 +44,22 @@ Not Applicable
 ### 1.1.2 Configuration and Management Requirements
 
 Operations:
-1. Save running configuration.  
-   CLI Command : write memory  
-   EXEC Level  
-   Parameter: filename  
-   Default: /etc/sonic/config_db.json  
+1. Save running configuration. <br>
+   CLI Command : write memory <br>
+   EXEC Level <br>
+   Write to file /etc/sonic/config_db.json  <br>
 
-2. Copy config to redis:configDB and reload.  
-   CLI Command : copy-to-running-config  
-   EXEC Level  
-   Parameter: filename  
-   Default: /etc/sonic/config_db.json  
+2. Copy config to redis:configDB and reload. <br>
+   CLI Command : copy <*filename*> running-configuration [reload] <br>
+   EXEC Level <br>
+   Parameter: filename -  default , user input filename.  <br>
+   Parameter: reload (optional) - flushDB and reload services. <br>
 
-3. Update config to redis:configDB.  
-   CLI Command: update-to-running-config  
-   EXEC Level  
-   Parameter: filename  
-   Default: /etc/sonic/config_db.json  
+3. Copy redis:configDB to file.  <br>
+   CLI Command: copy running-configuration <*filename*\>  <br>
+   EXEC Level  <br>
+   Parameter: filename  <br>
+
 
 The click CLI additionally supports 'config load_mgmt' and 'config load_minigraph' commands. These operations are SONiC specific. The new sonic management framework will handle the management interface related configuration through the NBI interface. The current json format of configDB replaces the xml format of minigraph.
 
@@ -72,7 +71,7 @@ Not Applicable
 
 ## 1.2 Design Overview
 ### 1.2.1 Basic Approach
-The operations are invoked via RPC construct of the yang interface. The sonic management framework callback is defined in the sonic-annotation.yang file. The operations are executed on the host service via the dBus framework.
+The operations are invoked via RPC construct of the yang interface. The sonic management framework callback is defined in the sonic-annotation.yang file. The operations are executed on the host service via the dBus framework. The dbus hostservice will execute the operations by calling the config click cli script.
 
 ### 1.2.2 Container
 This feature is contained within the sonic-mgmt-framework container.
@@ -119,19 +118,19 @@ A new sonic yang (sonic-config-mgmt.yang) provides the interface for configurati
 module: sonic-config-mgmt
 
 rpcs:
-  +---x save_config
+  +---x config_save
   |  +---w input
-  |  |  +---w file_path?   string
+  |  |  +---w filename?   string
   |  +--ro output
   |     +--ro status?   string
-  +---x reload_config
+  +---x config_load
   |  +---w input
-  |  |  +---w file_path?   string
+  |  |  +---w filename?   string
   |  +--ro output
   |     +--ro status?   string
-  +---x load_config
+  +---x config_reload
   |  +---w input
-  |  |  +---w file_path?   string
+  |  |  +---w filename?   string
   |  +--ro output
   |     +--ro status?   string
 
@@ -156,9 +155,9 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 
 |       CLI Command       | Compliance   | click CLI                    | Deviation
 |:-----------------------:|:-------------|------------------------------|---------------
-| write memory            | IS-CLI-like  |  config save                 |
-| copy-to-running-config  |              |  config reload               | This incorporates copy and restart of services.
-| update-to-running-config|              |  config load                 | This does an update to running config.
+| write memory            | IS-CLI-like  |  config save                  |
+|  copy <*filename*> running-configuration [reload]    |    IS-CLI-like          |  config load <br> config reload               | This incorporates copy and restart of services.
+| copy running-configuration <*filename*\>  |     IS-CLI-like         |  config save <*filename*>                 |
 
 **Deviations from IS-CLI:** If there is a deviation from IS-CLI, Please state the reason(s).
 
@@ -167,24 +166,26 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 Rest API is supported through the sonic-config-mgmt.yang.
 
 # 4 Flow Diagrams
-Provide flow diagrams for inter-container and intra-container interactions.
+Not applicable.
 
 # 5 Error Handling
-Provide details about incorporating error handling feature into the design and functionality of this feature.
+Not applicable.
 
 # 6 Serviceability and Debug
-Logging, counters, stats, trace considerations. Please make sure you have incorporated the debugging framework feature. e.g., ensure your code registers with the debugging framework and add your dump routines for any debug info you want to be collected.
+Not applicable.
 
 # 7 Warm Boot Support
-Describe expected behavior and any limitation.
+Not applicable.
 
 # 8 Scalability
-Describe key scaling factor and considerations.
+Not applicable.
 
 # 9 Unit Test
 List unit test cases added for this feature including warm boot.
 CLI test cases
 1. Execute 'write memory'. Default path applied. Verify config_db.json file.
-2. Execute 'write memory' with filepath. Verify config saved in the given filepath.
-3. Execute 'copy-to-running-config'. Verify default config loaded in redis:configDB with reload.
-4. Execute 'update-to-running-config' with filepath. Verify config loaded in redis:configDB with reload.
+2. Execute 'copy \<filename\> running-configuration [reload]'. Verify config flush. New config loaded from *filename* into redis:configDB with reload.
+3. Execute 'copy default running-configuration [reload]'. Verify config flush. New config loaded from default:/etc/sonic/config_db.json into redis:configDB with reload.
+4. Execute 'copy \<filename\> running-configuration . Verify config from *filename* loaded in redis:configDB.
+5. Execute 'copy default running-configuration . Verify config loaded from default:/etc/config/config_db.json into redis:configDB.
+6. Execute 'copy running-configuration <*filename*>. Verify configdb saved into given file.
