@@ -150,9 +150,11 @@ RBAC will be facilitated via Linux Groups:
   - Local user with `Operator` role is added into `docker` group
   - Local user with `Admin` role is added into `admin` group and is a `sudoer`.
 - Remote users
-  - Remote user with `Operator` role mapped to a global `remote-user` user who is part of `docker` group
-  - Remote user with `Admin` role mapped to a global `remote-user-su` user who is part of `admin` group and is a `sudoer`
-  - In the future, this "global user" approach will be revisited so that remote users are authenticated with their own username so that their activities may be properly audited.
+  - Remote users with `Operator` role are mapped to the same global `remote-user` user who is part of `docker` group
+  - Remote users with `Admin` role are mapped to the same global `remote-user-su` user who is part of `admin` group and is a `sudoer`
+  - This means that all remote users will share the same accounts on the system, which also means they will share the same /home directory and certificate to log into the REST server.
+
+  In the future, this "global user" approach will be revisited so that remote users are authenticated with their own username so that their activities may be properly audited.
 
 #### 1.1.1.5 Certificate-based Authentication for gNMI and REST
 For the initial release, it will be assumed that certificates will be managed outside of the NBIs. That is, no CLIs or REST/gNMI interfaces will be implemented to support public key infrastructure management for certificates and certificate authorities. Certificates will be manually generated and copied into the system via Linux utilities.
