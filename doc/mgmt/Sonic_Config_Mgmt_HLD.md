@@ -44,22 +44,25 @@ Not Applicable
 ### 1.1.2 Configuration and Management Requirements
 
 Operations:
-1. Save running configuration. <br>
+1. Save running configuration to default. <br>
    CLI Command : write memory <br>
    EXEC Level <br>
    Write to file /etc/sonic/config_db.json  <br>
 
-2. Copy config to redis:configDB and reload. <br>
-   CLI Command : copy <*filename*> running-configuration [reload] <br>
+2. Copy configuration from file to running and reload. <br>
+   CLI Command : copy file://<*filename*> running-configuration [overwrite] <br>
    EXEC Level <br>
-   Parameter: filename -  default , user input filename.  <br>
+   Parameter: <*filename*>: user input : file://etc/sonic/<*filename*\>  <br> &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; config can only be loaded from /etc/sonic/ directory <br>
    Parameter: reload (optional) - flushDB and reload services. <br>
 
-3. Copy redis:configDB to file.  <br>
-   CLI Command: copy running-configuration <*filename*\>  <br>
+3. Save running configuration to file.  <br>
+   CLI Command: copy running-configuration file://<*filename*\>  <br>
    EXEC Level  <br>
-   Parameter: filename  <br>
+   Parameter: <*filename*> -  user input: file://etc/sonic/<*filename*> <br> &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;   config can only be saved in /etc/sonic/ directory
 
+4. Copy startup configuration to running-configuration and reload. <br>
+CLI Command: copy running-configuration startup-configuration  <br>
+EXEC Level  <br>
 
 The click CLI additionally supports 'config load_mgmt' and 'config load_minigraph' commands. These operations are SONiC specific. The new sonic management framework will handle the management interface related configuration through the NBI interface. The current json format of configDB replaces the xml format of minigraph.
 
@@ -117,22 +120,14 @@ A new sonic yang (sonic-config-mgmt.yang) provides the interface for configurati
 ```
 module: sonic-config-mgmt
 
-rpcs:
-  +---x config_save
-  |  +---w input
-  |  |  +---w filename?   string
-  |  +--ro output
-  |     +--ro status?   string
-  +---x config_load
-  |  +---w input
-  |  |  +---w filename?   string
-  |  +--ro output
-  |     +--ro status?   string
-  +---x config_reload
-  |  +---w input
-  |  |  +---w filename?   string
-  |  +--ro output
-  |     +--ro status?   string
+  rpcs:
+    +---x copy
+       +---w input
+       |  +---w source?        string
+       |  +---w overwrite?     boolean
+       |  +---w destination?   string
+       +--ro output
+          +--ro status?   string
 
 ```
 
@@ -156,8 +151,9 @@ The following table maps SONIC CLI commands to corresponding IS-CLI commands. Th
 |       CLI Command       | Compliance   | click CLI                    | Deviation
 |:-----------------------:|:-------------|------------------------------|---------------
 | write memory            | IS-CLI-like  |  config save                  |
-|  copy <*filename*> running-configuration [reload]    |    IS-CLI-like          |  config load <br> config reload               | This incorporates copy and restart of services.
+|  copy <*filename*> running-configuration [overwrite]    |    IS-CLI-like          |  config load <*filename*><br> config reload <*filename*>              | This incorporates copy and restart of services.
 | copy running-configuration <*filename*\>  |     IS-CLI-like         |  config save <*filename*>                 |
+|copy startup-configuration  running-configuration  | IS-CLI-like   | config  load <br> config reload |   |   |   |
 
 **Deviations from IS-CLI:** If there is a deviation from IS-CLI, Please state the reason(s).
 
@@ -185,7 +181,7 @@ List unit test cases added for this feature including warm boot.
 CLI test cases
 1. Execute 'write memory'. Default path applied. Verify config_db.json file.
 2. Execute 'copy \<filename\> running-configuration [reload]'. Verify config flush. New config loaded from *filename* into redis:configDB with reload.
-3. Execute 'copy default running-configuration [reload]'. Verify config flush. New config loaded from default:/etc/sonic/config_db.json into redis:configDB with reload.
+3. Execute 'copy startup-configuration running-configuration [reload]'. Verify config flush. New config loaded from default:/etc/sonic/config_db.json into redis:configDB with reload.
 4. Execute 'copy \<filename\> running-configuration . Verify config from *filename* loaded in redis:configDB.
-5. Execute 'copy default running-configuration . Verify config loaded from default:/etc/config/config_db.json into redis:configDB.
+5. Execute 'copy startup-configuration running-configuration . Verify config loaded from default:/etc/config/config_db.json into redis:configDB.
 6. Execute 'copy running-configuration <*filename*>. Verify configdb saved into given file.
