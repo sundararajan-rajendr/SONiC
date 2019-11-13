@@ -73,19 +73,13 @@ This command displays the current ZTP configuration of the switch. It also displ
 
 The ```ztp enable``` command is used to administratively enable ZTP. When ZTP feature is included as a build option, ZTP service is configured to be enabled by default. This command is used to re-enable ZTP after it has been disabled by user. It is to be noted that this command will only modify the ZTP configuration file and does not perform any other actions.
 
-**ztp disable**
+** no ztp enable**
 
 The ```ztp disable``` command is used to stop and disable the ZTP service. If the ZTP service is in progress, it is aborted and ZTP status is set to disable in configuration file. The ZTP service does not run if it is disabled even after reboot or if startup configuration file is not present. User will have to use ```ztp enable``` for it to enable it administratively again.
 
-**ztp run**
-
-Use this command to manually restart a new ZTP session. This command deletes the existing ```/etc/sonic/config_db.json``` file and stats ZTP service. It also erases the previous ZTP session data. The ZTP configuration is loaded on to the switch and ZTP discovery is performed. This command is useful to restart ZTP after it has failed or has been disabled by user.
-
-
-
 ## 2.2 Functional Description
 
-After recieving the request from the client, via an RPC, the rest server will transfer the control to processAction method in the app module(inside traslib). This method will parse the target uri path and will branch to the corresponding function. These functions will call the python scripts in the host to perform ZTP related actions, like enable, disable ..etc. The response from the output of the script is propagated back to processAction method and is converted to json. The json message is sent back to the client.
+After recieving the request from the client, the rest server will transfer the control to the transformer method specific to the use case as given in the annotation file. This method will parse the target uri path and will branch to the corresponding function. These functions will call the python scripts in the host to perform ZTP related actions, like enable, disable ..etc. The response from the output of the script is propagated back and is converted to json. The json message is unmarshalled and the ygot structure is populated and sent back to the client.
 
 # 3 Design
 ## 3.1 Overview
@@ -131,36 +125,28 @@ N/A
 ## 3.6 User Interface
 ### 3.6.1 Data Models
 ```
- +--rw sonic-ztp
-       +--rw ZTP-STATUS
-       |  +--rw admin_mode?            boolean
-       |  +--rw service?               string
-       |  +--rw status?                string
-       |  +--rw source?                string
-       |  +--rw runtime?               string
-       |  +--rw timestamp?             yang:date-and-time
-       |  +--rw jsonversion?           string
-       |  +--rw activity_string?       string
-       |  +--rw CONFIG_SECTION_LIST* [sectionname]
-       |     +--rw sectionname     string
-       |     +--rw status?         string
-       |     +--rw runtime?        string
-       |     +--rw timestamp?      yang:date-and-time
-       |     +--rw exitcode?       uint32
-       |     +--rw ignoreresult?   boolean
-       +--rw ZTP-ENABLE
+module: openconfig-ztp
+    +--rw ztp
+       +--ro state
+       |  +--ro admin_mode?            boolean
+       |  +--ro error?                 string
+       |  +--ro service?               string
+       |  +--ro status?                string
+       |  +--ro source?                string
+       |  +--ro runtime?               string
+       |  +--ro timestamp?             yang:date-and-time
+       |  +--ro jsonversion?           string
+       |  +--ro activity_string?       string
+       |  +--ro CONFIG_SECTION_LIST* [sectionname]
+       |     +--ro sectionname     string
+       |     +--ro error?          string
+       |     +--ro status?         string
+       |     +--ro runtime?        string
+       |     +--ro timestamp?      yang:date-and-time
+       |     +--ro exitcode?       uint64
+       |     +--ro ignoreresult?   boolean
+       +--rw config
           +--rw admin_mode?   boolean
-
-  rpcs:
-    +---x ztp-run
-    |  +--ro output
-    |     +--ro status?          int32
-    |     +--ro status-detail?   string
-    +---x ztp-disable
-       +--ro output
-          +--ro status?          int32
-          +--ro status-detail?   string
-
 ```
 
 ### 3.6.2 CLI
@@ -173,43 +159,17 @@ sonic# ztp enable
 Success
 ```
 
-**ztp disable**
+**no ztp enable**
 
 ```
-sonic# ztp disable
+sonic# no ztp enable
 Success
 ```
-
-**ztp run**
-
-```
-sonic# ztp run
-Success
-```
-
 #### 3.6.2.2 Show Commands
 
 **sonic_installer list**
-
 ```
-sonic# show ztp-status
-ZTP Admin Mode : True
-ZTP Service    : Inactive
-ZTP Status     : SUCCESS
-ZTP Source     : dhcp-opt67 (eth0)
-Runtime        : 05m 31s
-Timestamp      : 2019-09-11 19:12:24 UTC
-
-ZTP Service is not running
-
-01-configdb-json: SUCCESS
-02-connectivity-check: SUCCESS
-```
-
-Use the verbose option to display more detailed information.
-
-```
-sonic# show ztp-status --verbose
+sonic# show ztp-status 
 ========================================
 ZTP
 ========================================
@@ -253,24 +213,21 @@ N/A
 N/A
 
 ### 3.6.3 REST API Support
-
-**TODO**
-TBD (Working on a custom Sonic yang).
-
+1.get_openconfig_ztp_ztp_state
+2.get_openconfig_ztp_ztp_config
+3.post_openconfig_ztp_ztp_config_admin_mode
 # 4 Flow Diagrams
 N/A
 
 # 5 Error Handling
 
-TBD
 
 # 6 Serviceability and Debug
 
-TBD
+
 
 # 7 Warm Boot Support
 
-TBD
 
 # 8 Scalability
 N/A
