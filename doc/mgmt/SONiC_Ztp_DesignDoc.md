@@ -73,13 +73,13 @@ This command displays the current ZTP configuration of the switch. It also displ
 
 The ```ztp enable``` command is used to administratively enable ZTP. When ZTP feature is included as a build option, ZTP service is configured to be enabled by default. This command is used to re-enable ZTP after it has been disabled by user. It is to be noted that this command will only modify the ZTP configuration file and does not perform any other actions.
 
-** no ztp enable**
+**no ztp enable**
 
-The ```ztp disable``` command is used to stop and disable the ZTP service. If the ZTP service is in progress, it is aborted and ZTP status is set to disable in configuration file. The ZTP service does not run if it is disabled even after reboot or if startup configuration file is not present. User will have to use ```ztp enable``` for it to enable it administratively again.
+The ```no ztp enable``` command is used to stop and disable the ZTP service. If the ZTP service is in progress, it is aborted and ZTP status is set to disable in configuration file. The ZTP service does not run if it is disabled even after reboot or if startup configuration file is not present. User will have to use ```ztp enable``` for it to enable it administratively again.
 
 ## 2.2 Functional Description
 
-After recieving the request from the client, the rest server will transfer the control to the transformer method specific to the use case as given in the annotation file. This method will parse the target uri path and will branch to the corresponding function. These functions will call the python scripts in the host to perform ZTP related actions, like enable, disable ..etc. The response from the output of the script is propagated back and is converted to json. The json message is unmarshalled and the ygot structure is populated and sent back to the client.
+After recieving the request from the client, the REST server will transfer the control to the transformer method specific to the use case as given in the annotation file. This method will parse the target URI path and will branch to the corresponding function. These functions will call the python scripts in the host to perform ZTP related actions, like enable, disable ..etc. The response from the output of the script is propagated back and is converted to json. The json message is unmarshalled and the ygot structure is populated and sent back to the client.
 
 # 3 Design
 ## 3.1 Overview
@@ -213,9 +213,9 @@ N/A
 N/A
 
 ### 3.6.3 REST API Support
-1.get_openconfig_ztp_ztp_state
-2.get_openconfig_ztp_ztp_config
-3.post_openconfig_ztp_ztp_config_admin_mode
+* get_openconfig_ztp_ztp_state
+* get_openconfig_ztp_ztp_config
+* post_openconfig_ztp_ztp_config_admin_mode
 # 4 Flow Diagrams
 N/A
 
