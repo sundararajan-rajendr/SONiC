@@ -1,4 +1,3 @@
-
 # ARP/NDP get support
 
 Implement get support for ARP/NDP using CLI/REST/gNMI SONiC management framework interfaces.
@@ -79,35 +78,47 @@ Provide management framework get support to existing SONiC capabilities with res
 ### 3.6.1 Data Models
 The following open config YANG model is used to implement get support for ARP/NDP entries.
 [https://github.com/openconfig/public/blob/master/release/models/interfaces/openconfig-if-ip.yang#L1205](https://github.com/openconfig/public/blob/master/release/models/interfaces/openconfig-if-ip.yang#L1205)
-```
+
+```diff
 module: openconfig-if-ip
   augment /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:
     +--rw ipv4
        +--rw neighbors
        |  +--rw neighbor* [ip]
        |     +--rw ip        -> ../config/ip
-       |     +--rw config
-       |     |  +--rw ip?                   oc-inet:ipv4-address
-       |     |  +--rw link-layer-address    oc-yang:phys-address
+-      |     +--rw config
+-      |     |  +--rw ip?                   oc-inet:ipv4-address
+-      |     |  +--rw link-layer-address    oc-yang:phys-address
        |     +--ro state
        |        +--ro ip?                   oc-inet:ipv4-address
        |        +--ro link-layer-address    oc-yang:phys-address
-       |        +--ro origin?               neighbor-origin
+-      |        +--ro origin?               neighbor-origin
 augment /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:
     +--rw ipv6
        +--rw neighbors
        |  +--rw neighbor* [ip]
        |     +--rw ip        -> ../config/ip
-       |     +--rw config
-       |     |  +--rw ip?                   oc-inet:ipv6-address
-       |     |  +--rw link-layer-address    oc-yang:phys-address
+-      |     +--rw config
+-      |     |  +--rw ip?                   oc-inet:ipv6-address
+-      |     |  +--rw link-layer-address    oc-yang:phys-address
        |     +--ro state
        |        +--ro ip?                   oc-inet:ipv6-address
        |        +--ro link-layer-address    oc-yang:phys-address
-       |        +--ro origin?               neighbor-origin
-       |        +--ro is-router?            empty
-       |        +--ro neighbor-state?       enumeration
+-      |        +--ro origin?               neighbor-origin
+-      |        +--ro is-router?            empty (Not supported by SONiC)
+-      |        +--ro neighbor-state?       enumeration (Not supported by SONiC)
 ```
+Also sonic yang (sonic-neigh.yang) is defined for fetching all entries from the neighbors table:
+```diff
++--rw sonic-neigh
+   +--ro NEIGH_TABLE
+      +--ro NEIGH_TABLE_LIST* [ifname ip]
+         +--ro ifname    string
+         +--ro ip        inet:ip-prefix
+         +--ro neigh?    yang:mac-address
+         +--ro family?   enumeration
+```
+
 ### 3.6.2 CLI
 #### 3.6.2.1 Configuration Commands
 #### 3.6.2.2 Show Commands
@@ -131,35 +142,36 @@ Command Mode: User EXEC
 Example:
 ````
 sonic# show ip arp
+------------------------------------------------------------------------
 Address        Hardware address    Interface         Egress Interface
 ------------------------------------------------------------------------
 20.0.0.2       90:b1:1c:f4:9d:ba   vlan20            Ethernet0
 20.0.0.5       00:11:22:33:44:55   vlan20            Ethernet0
 
 sonic# sonic# show ip arp interface vlan 20
+------------------------------------------------------------------------
 Address        Hardware address    Interface         Egress Interface
 -------------------------------------------------------------------------
 20.0.0.2       90:b1:1c:f4:9d:ba   vlan20            Ethernet0
 20.0.0.5       00:11:22:33:44:55   vlan20            Ethernet0
 
 sonic# show ip arp 20.0.0.2
+------------------------------------------------------------------------
 Address        Hardware address    Interface         Egress Interface
 -------------------------------------------------------------------------
 20.0.0.2       90:b1:1c:f4:9d:ba   vlan20            Ethernet0
 
 sonic# show ip arp mac-address 90:b1:1c:f4:9d:ba
+------------------------------------------------------------------------
 Address        Hardware address    Interface         Egress Interface
-------------------------------------------------------------------------------------------
+------------------------------------------------------------------------
 20.0.0.2       90:b1:1c:f4:9d:ba   vlan20            Ethernet0
-sonic#
 
 sonic# show ip arp summary
+---------------
 Total Entries
 ---------------
      2
-sonic#
-
-
 ````
 ##### 3.6.2.2.2 show ipv6 neighbors
 show ipv6 neighbors [interface { ethernet ``<port>`` [summary]  | port-channel ``<id>`` [summary]  | vlan ``<id>`` [summary] }]  [<A::B>] [mac-address ``<mac>``] [summary]
@@ -178,40 +190,37 @@ Command Mode: User EXEC
 Example:
 ````
 sonic# show ipv6 neighbors
+------------------------------------------------------------------------------------
 IPv6 Address                  Hardware Address   Interface          Egress Interface
-----------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 20::2                         90:b1:1c:f4:9d:ba  vlan20             Ethernet0
 fe80::92b1:1cff:fef4:9d5d     90:b1:1c:f4:9d:5d  Ethernet0             -
 fe80::92b1:1cff:fef4:9dba     90:b1:1c:f4:9d:ba  vlan20             Ethernet0
-sonic#
-
 
 sonic# show ipv6 neighbors 20::2
+-------------------------------------------------------------------------------------
 IPv6 Address                  Hardware Address    Interface         Egress Interface
------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------
 20::2                         90:b1:1c:f4:9d:ba   vlan20            Ethernet0
-sonic#
 
 sonic# show ipv6 neighbors mac-address 90:b1:1c:f4:9d:ba
+------------------------------------------------------------------------------------
 IPv6 Address                  Hardware Address    Interface         Egress Interface
-----------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 20::2                         90:b1:1c:f4:9d:ba   vlan20            Ethernet0
-sonic#
 
 sonic# show ipv6 neighbors summary
+-------------
 Total Entries
---------------
+-------------
      3
-sonic#
-
-
 ````
 #### 3.6.2.3 Debug Commands
 #### 3.6.2.4 IS-CLI Compliance
 The following table maps SONiC CLI commands to corresponding IS-CLI commands. The compliance column identifies how the command comply to the IS-CLI syntax:
 
-- **IS-CLI drop-in replace**  – meaning that it follows exactly the format of a pre-existing IS-CLI command.
-- **IS-CLI-like**  – meaning that the exact format of the IS-CLI command could not be followed, but the command is similar to other commands for IS-CLI (e.g. IS-CLI may not offer the exact option, but the command can be positioned is a similar manner as others for the related feature).
+- **IS-CLI drop-in replace**  \u2013 meaning that it follows exactly the format of a pre-existing IS-CLI command.
+- **IS-CLI-like**  \u2013 meaning that the exact format of the IS-CLI command could not be followed, but the command is similar to other commands for IS-CLI (e.g. IS-CLI may not offer the exact option, but the command can be positioned is a similar manner as others for the related feature).
 - **SONiC** - meaning that no IS-CLI-like command could be found, so the command is derived specifically for SONiC.
 
 |CLI Command|Compliance|IS-CLI Command (if applicable)| Link to the web site identifying the IS-CLI command (if applicable)|
@@ -230,25 +239,22 @@ The following table maps SONiC CLI commands to corresponding IS-CLI commands. Th
 |show ipv6 neighbors ``<A::B>``  | IS-CLI drop-in replace | | |
 |show ip arp mac-address ``<mac>`` | SONiC | | In order to match ARP command options, having mac-address based filter for this command as well|
 
-
-
-
 ### 3.6.3 REST API Support
 #### 3.6.3.1 GET
 ##### Get all support for both ARPs and Neighbors
-​/openconfig-interfaces:interfaces​/interface
+/openconfig-interfaces:interfaces/interface
 
 ##### ARPs get for matching particular interface
-​/openconfig-interfaces:interfaces​/interface={name}​/subinterfaces​/subinterface={index}​/openconfig-if-ip:ipv4​/neighbors
+/openconfig-interfaces:interfaces/interface={name}/subinterfaces/subinterface={index}/openconfig-if-ip:ipv4/neighbors
 
 ##### ARP get for matching particular interface and IP
-/openconfig-interfaces:interfaces​/interface={name}​/subinterfaces​/subinterface={index}​/openconfig-if-ip:ipv4​/neighbors​/neighbor={ip}
+/openconfig-interfaces:interfaces/interface={name}/subinterfaces/subinterface={index}/openconfig-if-ip:ipv4/neighbors/neighbor={ip}
 
 ##### IPv6 Neighbors get for matching particular interfaces
-​/openconfig-interfaces:interfaces​/interface={name}​/subinterfaces​/subinterface={index}​/openconfig-if-ip:ipv6​/neighbors
+/openconfig-interfaces:interfaces/interface={name}/subinterfaces/subinterface={index}/openconfig-if-ip:ipv6/neighbors
 
 ##### IPv6 Neighbors get for matching particular interfaces and IP
-​/openconfig-interfaces:interfaces​/interface={name}​/subinterfaces​/subinterface={index}​/openconfig-if-ip:ipv6​/neighbors​/neighbor={ip}
+/openconfig-interfaces:interfaces/interface={name}/subinterfaces/subinterface={index}/openconfig-if-ip:ipv6/neighbors/neighbor={ip}
 
 # 4 Flow Diagrams
 
@@ -286,9 +292,3 @@ The following test cases will be tested using CLI/REST/gNMI management interface
 5) Verify whether "show ipv6 neighbors <A.B.C.D> " option provides the neighbor entry matching the particular IP.
 
 6) Verify whether "show ipv6 neighbors mac-address" option provides the neighbor entries matching the particular MAC.
-
-
-
-
-
-# 10 Internal Design Information
