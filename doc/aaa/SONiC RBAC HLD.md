@@ -127,9 +127,9 @@ Given that the CLI module works by issuing REST transactions to the Management F
 **Design note:** Certificate-based authentication is desired over password-based authentication for the CLI-to-REST connection because it prevents the need to store and forward any plaintext passwords. Per-user certificates with strict file permissions are desired so as to ensure that users cannot drop into the Linux shell and perform operations as other than themselves (e.g., via `curl` with a shared certificate, or someone else's certificate).
 2. When a user logs into the switch, the switch will authenticate the user by using the username and password credentials.
 3. When the KLISH process is started, its UID and GID are set to those of the user that was authenticated by `sshd` or `login` (as through the console).
-4. When the KLISH shell is spawned, it will create a persistent, local HTTP connection over an internal TCP connection, and send the REST request to authenticate this KLISH session as the logged-in user, which can be looked up through NSS by using `getpwuid()`. This request will contain the user's client certificate.
+4. When the KLISH shell is spawned, it will create a persistent, local HTTPS connection over an internal socket, and send the REST request to authenticate this KLISH session as the logged-in user, which can be looked up through NSS by using `getpwuid()`. This authentication request will contain the user's client certificate.
 5. The REST server will authenticate the user and return a token with the username encoded in it. The KLISH CLI must cache this token and use it for all future requests from this KLISH session. The REST server will also maintain this token to username mapping with it so as to identify all future requests as well. This will also allow the REST server in creating audit logs for all the requests sent from KLISH, as well as pass the username to Translib for RBAC enforcement.
-6. KLISH CLI session will store the authentication token, and from then on, KLISH CLI will send REST request using the persistent connection with the authentication token in the HTTP header to the REST server for all the CLI commands.
+6. KLISH CLI session will store the authentication token, and from then on, KLISH CLI will send REST requests using the persistent connection with the authentication token in the HTTP header to the REST server for all the CLI commands.
 7. The KLISH session must be able to cleanly handle ctrl-c breaks while it is busy waiting on a response from the REST server.
 8. When the user exits the KLISH CLI session, the HTTP persistent connection is closed. The REST server will clean up the corresponding authentication token for its corresponding KLISH CLI Client.
 
@@ -145,12 +145,17 @@ As described in section [1.1.1.4 Linux Groups](#1114-linux-groups), the enforcem
 Since Translib is the main authority on authorized operations, this means that the NBIs cannot render to the user what they are and are not allowed to do. The CLI, therefore, renders the entire command tree to a user, even the commands they are not authorized to execute.
 
 #### 1.1.1.4 Linux Groups
+Initially, only two roles will be supported:
+- `admin` -- can perform read and write functions across all attributes (i.e., GET/PUT/PATCH/etc.)
+- `operator` -- can only perform read functions on all attributes (i.e., GET only)
+These privileges will be enforced by Translib.
+
 RBAC will be facilitated via Linux Groups:
 - Local users
-  - Local user with `Operator` role is added into `docker` group
+  - Local user with `Operator` role is added into `operator` group
   - Local user with `Admin` role is added into `admin` group and is a `sudoer`.
 - Remote users
-  - Remote users with `Operator` role are mapped to the same global `remote-user` user who is part of `docker` group
+  - Remote users with `Operator` role are mapped to the same global `remote-user` user who is part of `operator` group
   - Remote users with `Admin` role are mapped to the same global `remote-user-su` user who is part of `admin` group and is a `sudoer`
   - This means that all remote users will share the same accounts on the system, which also means they will share the same /home directory and certificate to log into the REST server.
 
@@ -159,9 +164,13 @@ RBAC will be facilitated via Linux Groups:
 #### 1.1.1.5 Certificate-based Authentication for gNMI and REST
 For the initial release, it will be assumed that certificates will be managed outside of the NBIs. That is, no CLIs or REST/gNMI interfaces will be implemented to support public key infrastructure management for certificates and certificate authorities. Certificates will be manually generated and copied into the system via Linux utilities.
 
-The gNMI server will use a trust store for certificates from a location such as `/usr/local/share/ca-certificates`. The trust store itself must be managed by [existing Linux tools](https://manpages.debian.org/jessie/ca-certificates/update-ca-certificates.8.en.html).
+The exception to this is the self-signed certificates used for CLI authentication to the REST server. Those certificates will be auto-generated when a user is created on the system. These certificates should be copied to a user's home directory _as well as_ the trust store so that the REST server can use them for authenticating local CLI sessions.
 
-The gNMI server must implement a method by which a username can be determined from the presented client certificate, so that the username can thus be passed to Translib for RBAC enforcement. The username may be derived from the Subject field of the X.509v3 certificate, or it can be mapped to a user's home directory, similar to how SSH RSA keys are managed.
+User certificates must be stored in a user's home directory. Their corresponding private keys must also be stored in the user's home directory, albeit with restricted permissions so that they are not readable by other users.
+
+The gNMI server will use a trust store for CA certificates from a location such as `/usr/local/share/ca-certificates`. The trust store itself must be managed by [existing Linux tools](https://manpages.debian.org/jessie/ca-certificates/update-ca-certificates.8.en.html).
+
+The gNMI server must implement a method by which a username can be determined from the presented client certificate, so that the username can thus be passed to Translib for RBAC enforcement. The username will be derived from the Subject field of the X.509v3 certificate.
 
 Users must be informed by way of documentation so that they know how to manage their certificate infrastructure in order to properly facilitate gNMI communication.
 
