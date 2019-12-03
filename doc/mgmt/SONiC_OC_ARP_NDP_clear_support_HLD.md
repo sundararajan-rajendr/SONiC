@@ -93,32 +93,16 @@ The following Sonic Yang model is used for implementation of this feature:
 
 ```module: sonic-neigh
 rpcs:
-+---x clear_arp
-|  +--ro output
-|     +--ro status?   string
-+---x clear_arp_ip
-|  +---w input
-|  |  +---w ip?   inet:ip-prefix
-|  +--ro output
-|     +--ro status?   string
-+---x clear_arp_iface
-|  +---w input
-|  |  +---w iface?   string
-|  +--ro output
-|     +--ro status?   string
-+---x clear_neighbors
-|  +--ro output
-|     +--ro status?   string
-+---x clear_neighbors_ip
-|  +---w input
-|  |  +---w ip?   inet:ip-prefix
-|  +--ro output
-|     +--ro status?   string
-+---x clear_neighbors_iface
-   +---w input
-   |  +---w iface?   string
-   +--ro output
-      +--ro status?   string
+  +---x clear_arp
+    |  +---w input
+    |  |  +---w ifip?   string
+    |  +--ro output
+    |     +--ro status?   string
+    +---x clear_neighbors
+       +---w input
+       |  +---w inparam?   string
+       +--ro output
+          +--ro status?   string
 ```
 
 ### 3.6.2 CLI
