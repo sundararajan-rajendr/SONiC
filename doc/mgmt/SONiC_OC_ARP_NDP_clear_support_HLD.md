@@ -93,9 +93,9 @@ The following Sonic Yang model is used for implementation of this feature:
 
 ```module: sonic-neigh
 rpcs:
-  +---x clear_arp
+    +---x clear_arp
     |  +---w input
-    |  |  +---w ifip?   string
+    |  |  +---w inparam?   string
     |  +--ro output
     |     +--ro status?   string
     +---x clear_neighbors
