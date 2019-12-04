@@ -52,3 +52,9 @@ the existing HTTPS connection.
 
 This approach is the most secure option, however, it needs heavy modification to
 klish, and there are several unknowns at this time.
+
+## No modification - Buzznik
+
+This approach leaves the design as is for the Buzznik release. Every command
+will continue to create a new HTTPS connection, as it does today, and will tear
+down the connection on completion of the request.
