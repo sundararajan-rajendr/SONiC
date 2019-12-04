@@ -91,18 +91,31 @@ N/A
 ### 3.6.1 Data Models
 The following Sonic Yang model is used for implementation of this feature:
 
-```module: sonic-neigh
-rpcs:
+```module: sonic-nbr
+  rpcs:
     +---x clear_arp
     |  +---w input
-    |  |  +---w inparam?   string
+    |  |  +---w (option)?
+    |  |     +--:(all)
+    |  |     |  +---w all?      boolean
+    |  |     +--:(ip)
+    |  |     |  +---w ip?       inet:ip-prefix
+    |  |     +--:(ifname)
+    |  |        +---w ifname?   union
     |  +--ro output
-    |     +--ro status?   string
-    +---x clear_neighbors
+    |     +--ro outData?   string
+    +---x clear_ndp
        +---w input
-       |  +---w inparam?   string
+       |  +---w (option)?
+       |     +--:(all)
+       |     |  +---w all?      boolean
+       |     +--:(ip)
+       |     |  +---w ip?       inet:ip-prefix
+       |     +--:(ifname)
+       |        +---w ifname?   union
        +--ro output
-          +--ro status?   string
+          +--ro outData?   string
+
 ```
 
 ### 3.6.2 CLI
