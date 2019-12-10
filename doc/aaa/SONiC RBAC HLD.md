@@ -177,11 +177,37 @@ Users must be informed by way of documentation so that they know how to manage t
 The REST server must use the same certificate scheme as the gNMI server to validate client certificates.
 
 #### 1.1.1.6 Local User Management and UserDB Sync
-An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators (with the appropriate role) must be able to add/delete users, modify users' passwords, and modify users' roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
+An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators with the appropriate role must be able to add/delete users, modify user passwords, and modify user roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
 
-Additionally, users created via the NBIs must be stored in the Redis DB and synced with the Linux user database in `/etc/passwd` and `/etc/shadow`. Likewise, users created in Linux via `useradd` (or modified via `usermod` or `passwd`) must be synced to the Redis User DB as well (See section 3.2.6 for info on the UserDB).
+Users must be added to the Linux database (`/etc/passwd`, `/etc/group`, and optionally `/etc/shadow`). That's where a user is mapped to a Linux [User Identifier](https://en.wikipedia.org/wiki/User_identifier) (UID) and primary [Group Identifier](https://en.wikipedia.org/wiki/Group_identifier) (GID). When users are created they also need to be assigned roles. Roles are simply defined as Linux groups (`/etc/group`) and assigned to users as [Supplementary GIDs](https://en.wikipedia.org/wiki/Group_identifier#Supplementary_groups).  
 
-To facilitate the sync between users in the UserDB and with users in Linux, a service must run on the host that listens for both changes to `/etc/passwd` and changes to UserDB, since users can be created via either interface (UserDB via NBIs / Linux commands).
+When a user is created it also needs to be assigned certificates that will allow them to communicate with the REST server. Finally, all users need to be added to the REDIS database (see [section 3.2.6]()) where additional information about each user can be stored (e.g. *tenant*).
+
+Since these operations (i.e. creating Linux users, assigning certificates, etc.) are non-trivial, the process of creating users will be entrusted to the Host Account Management Daemon (**hamd**).
+
+##### 1.1.1.6.1 Host Account Management Daemon (hamd)
+
+The hamd process runs on the host. It is accessed via a DBus interface that provides the ability to access and/or modify the host's Linux database (`/etc/passwd`, `/etc/group`, and optionally `/etc/shadow`). Since DBus is a secured interface we can control which processes will be allowed to access hamd. 
+
+The hamd process will provide the following APIs to create/modify/delete user and group (role) accounts:
+
+- **useradd**: To create new users (similar to GNU [useradd](http://man7.org/linux/man-pages/man8/useradd.8.html))
+- **userdel**: To delete a user (similar to GNU [userdel](http://man7.org/linux/man-pages/man8/userdel.8.html))
+- **passwd**: To change a user password (similar to GNU [passwd](http://man7.org/linux/man-pages/man1/passwd.1.html))
+- **set_roles**: To set a user's roles (similar to GNU [usermod](http://man7.org/linux/man-pages/man8/usermod.8.html))
+- **groupadd**: To create new groups/roles (similar to GNU [groupadd](http://man7.org/linux/man-pages/man8/groupadd.8.html))
+- **groupdel**: To delete groups/roles (similar to GNU [groupdel](http://man7.org/linux/man-pages/man8/groupdel.8.html))
+
+##### 1.1.1.6.2 Name Service Switch
+
+In addition to providing APIs to create/modify/delete user and group (role) accounts, hamd also provides APIs to simply read user and group (role) accounts. Here's the list:
+
+- **getpwnam**: To retrieve user credentials (similar to POSIX [getpwnam](http://man7.org/linux/man-pages/man3/getpwnam.3.html))
+- **getpwuid**: To retrieve user credentials (similar to POSIX [getpwuid](http://man7.org/linux/man-pages/man3/getpwnam.3.html))
+- **getgrnam**: To retrieve group/role credentials (similar to POSIX [getgrnam](http://man7.org/linux/man-pages/man3/getgrnam.3.html))
+- **getgrgid**: To retrieve group/role credentials (similar to POSIX [getgrgid](http://man7.org/linux/man-pages/man3/getgrnam.3.html))
+
+These APIs, however, are meant to be invoked through [NSS](https://en.wikipedia.org/wiki/Name_Service_Switch) (name service switch).  That is, applications running in containers can simply continue invoking the standard POSIX APIs (`getpwnam()`, `getgrnam()`, etc) and a Host Account Management NSS module will ensure that the credentials get retrieved from hamd running on the host. The HAM NSS module (`libnss_ham.so.2`) need be installed and configured (`/etc/nsswitch.conf`) in the containers that require access to the host's Linux database. 
 
 ### 1.1.2 Configuration and Management Requirements
 An interface and accompanying CLI must be developed for local user management. Local users should be configurable like any other feature: via CLI, REST, and gNMI. Additionally, users may also be created and managed via Linux commands in the Bash shell. This will add additional complexity and require a service to sync between the Redis DB and the Linux user database.
@@ -255,14 +281,14 @@ N/A
 N/A
 
 ### 3.2.6 USER DB
-A new DB will be introduced in Redis which maintains RBAC related tables in it. The User DB will have the following tables :
+A new Redis DB will be introduced to hold RBAC related tables. The User DB will have the following tables :
 * **UserTable**
 
   This table contains the username to role mapping needed for enforcing the authorization checks.  It has the following columns :
     * *user* : This is the username being authorized. This is a string.
     * *tenant* : This contains the tenant with which the user is associated. This is a string
     * *role* : This specifies the role associated with the username in the tenant. This is a comma separated list of strings.
-    The UserTable is keyed on <***user, tenant***>.
+      The UserTable is keyed on <***user, tenant***>.
 
   **Note**: The UserTable will _not_ store users' salted+hashed passwords due to security concerns surrounding access restrictions to the DB; instead, that information will be maintained in `/etc/shadow` as per Linux convention.
 
