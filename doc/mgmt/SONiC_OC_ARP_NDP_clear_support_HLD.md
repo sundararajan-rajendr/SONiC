@@ -63,7 +63,28 @@ N/A (non-hardware feature)
 ## 2.1 Target Deployment Use Cases
 # 3 Design
 ## 3.1 Overview
-The command causes invocation of an RPC sent from the management framework to a process in the host that clears the Linux neighbors cache, that neighbor_sync process will eventually clear the NEIGH_TABLE.
+The command causes invocation of an RPC sent from the management framework to a process in the host that clears the Linux neighbors cache using following commands:
+
+For ipv4:
+```
+All entries:
+ sudo ip -4 -s -s neigh flush all
+
+Specific entry:
+ sudo ip -4 neigh del <ip> dev <interface name>
+```
+
+For ipv6:
+```
+All entries:
+ sudo ip -6 -s -s neigh flush all
+
+Specific entry:
+ sudo ip -6 neigh del <ip> dev <interface name>
+```
+NOTE: To run this commands, the docker image should run in privileged mode.
+
+This triggers neighbor sync process of SONiC and eventually the corresponding entries in NEIGH_TABLE get deleted.
 
 Without any argument the command will flush the complete neighbor table. However, a user can specify interface or IP to clear corresponding neighbor entries only.
 Help information and syntax details are provided if the command is preceded with '?'.
@@ -91,21 +112,20 @@ N/A
 ### 3.6.1 Data Models
 The following Sonic Yang model is used for implementation of this feature:
 
-```module: sonic-nbr
+```
+module: sonic-arp-ndp
+    +--rw sonic-arp-ndp
+       +--ro NEIGH_TABLE
+          +--ro NEIGH_TABLE_LIST* [ifname ip]
+             +--ro ifname    union
+             +--ro ip        inet:ip-prefix
+             +--ro neigh?    yang:mac-address
+             +--ro family?   enumeration
+
   rpcs:
-    +---x clear_arp
-    |  +---w input
-    |  |  +---w (option)?
-    |  |     +--:(all)
-    |  |     |  +---w all?      boolean
-    |  |     +--:(ip)
-    |  |     |  +---w ip?       inet:ip-prefix
-    |  |     +--:(ifname)
-    |  |        +---w ifname?   union
-    |  +--ro output
-    |     +--ro outData?   string
-    +---x clear_ndp
+    +---x clear_arp_ndp
        +---w input
+       |  +---w family?   enumeration
        |  +---w (option)?
        |     +--:(all)
        |     |  +---w all?      boolean
@@ -114,8 +134,7 @@ The following Sonic Yang model is used for implementation of this feature:
        |     +--:(ifname)
        |        +---w ifname?   union
        +--ro output
-          +--ro outData?   string
-
+          +--ro response?   string
 ```
 
 ### 3.6.2 CLI
