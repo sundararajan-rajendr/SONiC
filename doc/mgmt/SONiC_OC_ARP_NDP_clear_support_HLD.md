@@ -1,5 +1,3 @@
-# Show techsupport
-Diagnostic information aggregated presentation
 # High Level Design Document
 #### Rev 0.1
 
