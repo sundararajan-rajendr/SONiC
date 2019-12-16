@@ -145,12 +145,13 @@ Syntax:
 `
 clear ip arp [interface { Ethernet <port> | PortChannel <id> | Vlan <id> | Management <id> }] [<A.B.C.D>]
 `
+The command returns a non-empty string in case of any error. For e.g. if the interface is not found or the IP address is not available in ARP or NDP table.
 
 Syntax Description:
 
 |    Keyword    | Description |
 |:-----------------:|:-----------:|
-| interface Ethernet/PortChannel/VLAN/Management| This option clears the ARP entries matching the interface. The Management interface translates to "eth" internally.
+| interface Ethernet/PortChannel/VLAN/Management| This option clears the ARP entries matching the interface. The Management interface translates to "eth" internally. For e.g. "clear ip arp inerface Management 0" will flush the entries learnt on interface "eth0".
 | A.B.C.D | This options clears the ARP entries matching the particular IP
 
 Command Mode: User EXEC
