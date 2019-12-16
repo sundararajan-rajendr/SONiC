@@ -82,7 +82,7 @@ All entries:
 Specific entry:
  sudo ip -6 neigh del <ip> dev <interface name>
 ```
-NOTE: To run this commands, the docker image should run in privileged mode.
+NOTE: To execute these commands, the docker image should be running in the *privileged* mode.
 
 This triggers neighbor sync process of SONiC and eventually the corresponding entries in NEIGH_TABLE get deleted.
 
@@ -145,14 +145,17 @@ Syntax:
 `
 clear ip arp [interface { Ethernet <port> | PortChannel <id> | Vlan <id> | Management <id> }] [<A.B.C.D>]
 `
-The command returns a non-empty string in case of any error. For e.g. if the interface is not found or the IP address is not available in ARP or NDP table.
+
+The command returns a non-empty string in case of any error; for e.g. if the interface is not found or the IP address is not available in ARP or NDP table.
 
 Syntax Description:
 
 |    Keyword    | Description |
 |:-----------------:|:-----------:|
-| interface Ethernet/PortChannel/VLAN/Management| This option clears the ARP entries matching the interface. The Management interface translates to "eth" internally. For e.g. "clear ip arp inerface Management 0" will flush the entries learnt on interface "eth0".
+| interface Ethernet/PortChannel/VLAN/Management*| This option clears the ARP entries matching the interface.
 | A.B.C.D | This options clears the ARP entries matching the particular IP
+
+*The Management interface translates to "eth" internally. For e.g. "clear ip arp inerface Management 0" will flush the entries learnt on interface "eth0".
 
 Command Mode: User EXEC
 Example:
@@ -178,7 +181,7 @@ Syntax Description:
 
 |    Keyword    | Description |
 |:-----------------:|:-----------:|
-| interface Ethernet/PortChannel/VLAN/Management| This option clears the neighbors' entries matching the interface. The Management interface translates to "eth" internally.
+| interface Ethernet/PortChannel/VLAN/Management*| This option clears the neighbors' entries matching the interface.
 | A::B | This options clears the neighbors' entries matching the particular IPv6 address.
 
 Command Mode: User EXEC
