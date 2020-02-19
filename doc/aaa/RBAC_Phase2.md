@@ -144,12 +144,18 @@ via the following steps:
    closed. The REST server will clean up the corresponding authentication token
    for its corresponding KLISH CLI Client.
 
-#### 1.1.1.3 REST server authentication methods CLIs
+#### 1.1.1.3 REST/gNMI server authentication methods CLIs
 
 ```
 aaa authentication {rest-server | gnmi-server} {[password] [token] [certificate]}
 aaa authentication {rest-server | gnmi-server} certificate no-authorization
+no aaa authentication {rest-server | gnmi-server}
 ```
+
+The `no aaa ...` command will disable authentication altogether, and will allow
+all users to execute admin level commands via the REST/gNMI interfaces. The CLI
+however, will still require a valid password based login, due to it being
+accessed via SSH.
 
 #### 1.1.1.4 Linux Groups
 Roles will not have a direct map to a primary Linux group, however,
@@ -192,7 +198,6 @@ Since these operations (i.e. creating Linux users, assigning certificates, etc.)
 
 The hamd process runs on the host. It is accessed via a DBus interface that provides the ability to access and/or modify the host's Linux database (`/etc/passwd`, `/etc/group`, and optionally `/etc/shadow`). Since DBus is a secured interface we can control which processes will be allowed to access hamd.
 
-
 The hamd process will provide the following APIs to create/modify/delete user and group (role) accounts:
 
 - **useradd**: To create new users (similar to GNU [useradd](http://man7.org/linux/man-pages/man8/useradd.8.html))
@@ -201,6 +206,12 @@ The hamd process will provide the following APIs to create/modify/delete user an
 - **set_roles**: To set a user's roles (similar to GNU [usermod](http://man7.org/linux/man-pages/man8/usermod.8.html))
 - **groupadd**: To create new groups/roles (similar to GNU [groupadd](http://man7.org/linux/man-pages/man8/groupadd.8.html))
 - **groupdel**: To delete groups/roles (similar to GNU [groupdel](http://man7.org/linux/man-pages/man8/groupdel.8.html))
+- **useredit**: To create or modify users. This method will accept a username,
+  hashed password, and a list of roles.
+
+The hamd process will add the users to the User Table in the Config DB, however,
+only the username, tenant (empty for now) and roles will be saved in the DB. The
+password will not be saved due to security considerations.
 
 ##### 1.1.1.6.2 Name Service Switch
 
@@ -218,17 +229,8 @@ An interface and accompanying CLI must be developed for local user management. L
 
 
 ### 1.1.3 Scalability Requirements
-Adding authentication to NBIs will result in some performance overhead, especially when doing operations involving asymmetric cryptography. Care should be taken to leverage performance-enhancing features of a protocol wherever possible.
 
-#### 1.1.3.1 REST Server
-- Persistent HTTP connections can be used to preserve TCP sessions, thereby avoiding handshake overhead.
-- TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
-- Token-based authentication via JSON Web Tokens (JWT) will be used to preserve sessions for users who have already authenticated with password-based authentication, so that they do not need to constantly re-use their passwords.
-
-#### 1.1.3.2 gNMI Server
-- TLS session resumption can be used to preserve the TLS session layer, thereby avoiding TLS handshake overhead and repeated authentication operations (which can involve expensive asymmetric cryptographic operations)
-
-#### 1.1.3.3 Translib
+#### 1.1.3.1 Translib
 - Translib will cache all the user information along with the privilege and resource information to avoid the overhead of querying them every time we receive a request.
 - Will rely on notification to update any change in the user information, privilege or resource information
 
@@ -237,11 +239,8 @@ N/A
 
 ## 1.2 Design Overview
 ### 1.2.1 Basic Approach
-The code will extend the existing Klish (CLI) and REST Server modules in the sonic-mgmt-framework repository. Klish will be extended to enable authentication to the REST server (depending on the ultimately chosen approach), and the REST Server will need to be extended to map transactions to a user and pass that username data to the Translib.
 
-The gNMI server, which currently exists in the sonic-telemetry repository, needs to support passing the username down to Translib as well.
-
-The Translib code (also in sonic-mgmt-framework) will be extended to support RBAC via Linux Groups. It will receive username data from the REST/gNMI NBIs and perform the Group lookup for a given user.
+The Translib code (also in sonic-mgmt-framework) will be modified to support RBAC via Roles, rather than Groups. It will receive username data from the REST/gNMI NBIs and perform the role lookup for a given user.
 
 For user management, a service must run on the host to sync the Redis User DB with the Linux user database and vice-versa.
 
@@ -270,22 +269,6 @@ Users and their role (group) assignments may be managed via Linux tools or the N
 
 ## 3.2 DB Changes
 ### 3.2.1 CONFIG DB
-N/A
-
-### 3.2.2 APP DB
-N/A
-
-### 3.2.3 STATE DB
-N/A
-
-### 3.2.4 ASIC DB
-N/A
-
-### 3.2.5 COUNTER DB
-N/A
-
-### 3.2.6 USER DB
-A new Redis DB will be introduced to hold RBAC related tables. The User DB will have the following tables :
 * **UserTable**
 
   This table contains the username to role mapping needed for enforcing the authorization checks.  It has the following columns :
@@ -324,6 +307,22 @@ A new Redis DB will be introduced to hold RBAC related tables. The User DB will 
     * *tenant* : The tenant for which the resource partitioning is being done. This is a string.
     * *instances* : The instances of the *resource* allocated to this *tenant*. This is a list of instances.
   The TenantTable is keyed on <***resource, tenant***>
+
+### 3.2.2 APP DB
+N/A
+
+### 3.2.3 STATE DB
+N/A
+
+### 3.2.4 ASIC DB
+N/A
+
+### 3.2.5 COUNTER DB
+N/A
+
+### 3.2.6 USER DB
+This was described in the initial document for Phase 1, but the corresponding
+tables have been moved to CONFIG DB. This is therefore, no longer used.
 
 ## 3.3 Switch State Service Design
 ### 3.3.1 Orchestration Agent
@@ -396,7 +395,7 @@ If a user authenticates but is not part of one of the pre-defined groups, they w
 # 6 Serviceability and Debug
 All operations performed by NBIs (CLI commands, REST/gNMI operations) should be logged/audited with usernames attached to the given operation(s) performed.
 
-Initially, users who are remotely authenticated will share a common role-specific username, so there will be a limitation here.  
+Initially, users who are remotely authenticated will share a common role-specific username, so there will be a limitation here.
 
 # 7 Warm Boot Support
 N/A
