@@ -101,6 +101,9 @@ TBD
 - HAM will become the single source of truth for user management on SONiC
   systems.
 - Local user management: CLIs and APIs for creating and managing local users on the system -- their usernames, passwords, and roles.
+- Authentication control: CLIs and APIs to modify the allowed authentication
+  modes on the REST and gNMI interfaces.
+- CLI authentication mechanisms to REST server.
 
 ### 1.1.1 Functional Requirements
 
@@ -110,9 +113,9 @@ A variety of authentication methods must be supported:
   - Password-based Authentication
   - Public-key Authentication
 * **REST** authentication
-  - Password-based Authentication with JWT token-based authentication
-  - Certificate-based Authentication with JWT token-based authentication
-  - The REST server must be enhanced to accept all types of authentication concurrently
+  - Password-based Authentication
+  - JWT token-based authentication
+  - Certificate-based Authentication
 * **gNMI** Authentication
   - Password-based Authentication with Token-based authentication
   - Certificate-based Authentication
@@ -128,12 +131,12 @@ via the following steps:
 2. REST will listen in on a Unix socket. Listener will detect the user at the
    remote end of the connection, and use that for authentication/authorization.
 3. The REST server will authenticate the user and return a token with the
-   username encoded in it. The KLISH CLI must cache this token and use it for
-   all future requests from this KLISH session. The REST server will also
-   maintain this token to username mapping with it so as to identify all future
-   requests as well. This will also allow the REST server in creating audit logs
-   for all the requests sent from KLISH, as well as pass the username to
-   Translib for RBAC enforcement.
+   username and role encoded in it. The KLISH CLI must cache this token and use
+   it for all future requests from this KLISH session. The REST server will also
+   maintain this token to username/role mapping with it so as to identify all
+   future requests as well. This will also allow the REST server in creating
+   audit logs for all the requests sent from KLISH, as well as pass the username
+   and role to Translib for RBAC enforcement.
 4. KLISH CLI session will store the authentication token, and from then on,
    KLISH CLI will send REST requests using the persistent connection with the
    authentication token in the HTTP header to the REST server for all the CLI
@@ -146,44 +149,65 @@ via the following steps:
 
 #### 1.1.1.3 REST/gNMI server authentication methods CLIs
 
-```
-aaa authentication {rest-server | gnmi-server} {[password] [token] [certificate]}
-aaa authentication {rest-server | gnmi-server} certificate no-authorization
-no aaa authentication {rest-server | gnmi-server}
-```
-
-The `no aaa ...` command will disable authentication altogether, and will allow
-all users to execute admin level commands via the REST/gNMI interfaces. The CLI
-however, will still require a valid password based login, due to it being
-accessed via SSH.
+The CLI shall provide commands to modify the authentication methods of both the
+REST and gNMI interfaces.
 
 #### 1.1.1.4 Linux Groups
 Roles will not have a direct map to a primary Linux group, however,
 supplementary groups are used to allow access to additional functionalities.
 - `admin` users will be added to `sudo` and `docker` groups
 - `operator` users will be added to `docker` group only.
+- All non-admin users will be added to the `docker` group only.
+
+The default shell for all users is set to a script. This script will determine
+if the user is a member of the admin group, and if so, drop them into a Bash
+shell, otherwise, it will spawn KLISH to drop them into the CLI. Non-admin users
+will only have access to the CLI and not be able to access Bash.
 
 #### 1.1.1.5 Customizable roles
 
-Admin users shall be able to create customizable roles for further granularity beyond read-only and read-write. For instance, a `secadmin` role shall allow the users to configure security parameters on the switch. The custom role shall have a default deny policy. Custom roles shall use the YANG paths and corresponding actions that are permitted. GET action is always permitted. Roles shall be defined in JSON format (TBD), a sample role is displayed below.
+Admin users shall be able to create customizable roles for further granularity beyond read-only and read-write. For instance, a `secadmin` role shall allow the users to configure security parameters on the switch. The custom role shall have a default deny policy. Custom roles shall map a set of features, and their access level to the feature. A feature is a set of YANG paths. The default policy is no access to a feature, if it is not specified in the role.
 
 ```
 [
   {
     "name": "secadmin",
-    "paths": [
-      {
-        "yang-path": "/restconf/data/openconfig-system:system/aaa/authentication/config",
-        "methods": ["PUT"]
-      },
-      {
-        "yang-path": "/restconf/data/openconfig-system:system/aaa/authentication/users/user={username}",
-        "methods": ["PATCH", "DELETE"]
-      }
+    "features": [
+        {
+            "feature": "aaa",
+            "access": "rw"
+        },
+        {
+            "feature": "net",
+            "access": "ro"
+        }
     ]
   }
 ]
 ```
+
+Features map to a set of YANG paths. The features are saved in the
+ResourceTable, but a default feature set is defined in the system to allow users
+to start from a known state. Sample feature description is shown below.
+
+```
+[
+    {
+        "name": "aaa",
+        "paths": [
+            "openconfig-aaa:aaa/system/users/user={username}",
+            "openconfig-aaa:aaa/system/users"
+        ]
+    },
+    {
+        "name": "net",
+        "paths": [
+            "openconfig-net:net/xyz"
+        ]
+    }
+]
+```
+
 
 #### 1.1.1.6 Local User Management and UserDB Sync
 An interface must be developed for local user management, so that administrators can add users and assign passwords and roles to them. Administrators with the appropriate role must be able to add/delete users, modify user passwords, and modify user roles. They must be able to do so through all of the NBIs, meaning that a YANG model and CLI tree must be developed.
@@ -203,11 +227,11 @@ The hamd process will provide the following APIs to create/modify/delete user an
 - **useradd**: To create new users (similar to GNU [useradd](http://man7.org/linux/man-pages/man8/useradd.8.html))
 - **userdel**: To delete a user (similar to GNU [userdel](http://man7.org/linux/man-pages/man8/userdel.8.html))
 - **passwd**: To change a user password (similar to GNU [passwd](http://man7.org/linux/man-pages/man1/passwd.1.html))
-- **set_roles**: To set a user's roles (similar to GNU [usermod](http://man7.org/linux/man-pages/man8/usermod.8.html))
+- **setroles**: To set a user's roles (similar to GNU [usermod](http://man7.org/linux/man-pages/man8/usermod.8.html))
 - **groupadd**: To create new groups/roles (similar to GNU [groupadd](http://man7.org/linux/man-pages/man8/groupadd.8.html))
 - **groupdel**: To delete groups/roles (similar to GNU [groupdel](http://man7.org/linux/man-pages/man8/groupdel.8.html))
 - **useredit**: To create or modify users. This method will accept a username,
-  hashed password, and a list of roles.
+  hashed password, and a list of strings corresponding to the roles.
 
 The hamd process will add the users to the User Table in the Config DB, however,
 only the username, tenant (empty for now) and roles will be saved in the DB. The
@@ -242,7 +266,8 @@ N/A
 
 The Translib code (also in sonic-mgmt-framework) will be modified to support RBAC via Roles, rather than Groups. It will receive username data from the REST/gNMI NBIs and perform the role lookup for a given user.
 
-For user management, a service must run on the host to sync the Redis User DB with the Linux user database and vice-versa.
+Translib shall cache the user table and role list to amortize the cost of a
+database lookup over several transactions.
 
 ### 1.2.2 Container
 SONiC Management Framework, gNMI Telemetry containers
@@ -261,7 +286,9 @@ Since the Klish CLI in the management framework communicates with the REST serve
 
 RBAC will be enforced centrally in the management framework, so that users accessing the system through varying interfaces will be limited to the same, consistent set of operations and objects depending on their role. Users' roles will be mapped using Linux Groups.
 
-Users and their role (group) assignments may be managed via Linux tools or the NBIs.
+Users and their role (group) assignments may be managed via the NBIs. HAM shall
+provide tools to allow administrators to manage the users and roles from the
+shell (Click command? Shell script? TBD)
 
 # 3 Design
 ## 3.1 Overview
@@ -281,11 +308,10 @@ Users and their role (group) assignments may be managed via Linux tools or the N
 
 * **PrivilegeTable**
 
-  This table has provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
+  This table provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
     * *role* : The role associated with the user that is being authorized. This is a string.
     * *feature* : This is feature that the role is being authorized to access. The granularity of the feature can be :
-        * *feature* - A logical grouping of multiple commands. If the user is authorized to access a particular feature, the column contains the tag associated with that feature. (More on tagging later. This will be implemented in Phase 2 of RBAC.)
-        * *feature-group* - A logical grouping of multiple features. If the user is authorized to a feature-group, the column contains the name of the feature-group. (More on feature-group later. This will be implemented in Phase 2 of RBAC.)
+        * *feature* - A logical grouping of multiple commands. If the user is authorized to access a particular feature, the column contains the tag associated with that feature.
         * *entire-system* - If the user is being granted access to the entire system, the column contains *all*
     * *permissions* : Defines the permissions associated with the role. This is a string.
         * *none* - This is the default permissions that a role is created with. A role associated with *none* permission cannot access any resources on the system to read, or to modify them.
@@ -294,7 +320,6 @@ Users and their role (group) assignments may be managed via Linux tools or the N
   The PrivilegeTable is keyed on <***role, feature***>
 
 * **ResourceTable**
-  (To be implemented in Phase 2)
   Though the resources are statically tagged with the features that they belong to, a ResourceTable is still needed so as to allow for future extensibility. It is possible that in the future, a customer wants a more granular control over the authorization and wants to either sub partition the features or override the default tagging associated with a feature. The ResourceTable will allow for this support in the future. In the Phase 2, this table will be create using the default tagging associated with the resources.
     * *resource* : The xpath associated with the resource being accessed. This is a string.
     * *feature-name* : The tag of the feature this resource belongs to.
@@ -332,25 +357,22 @@ N/A
 N/A
 
 ## 3.4 SyncD
-To facilitate the sync between users in the UserDB and with users in Linux, a service must run on the host that listens for both changes to `/etc/passwd` and changes to UserDB, since users can be created via either interface (UserDB via NBIs / Linux commands).
 
-This service runs a process that uses the POSIX [inotify APIs](http://man7.org/linux/man-pages/man7/inotify.7.html) to register for file system events like changes to `/etc/passwd` and/or `/etc/shadow`.
-Another approach would be to have a process started by `systemd` on changes to `/etc/passwd` or `/etc/group`, and that process would simply reconcile the Redis DB with what is found in those files. `systemd` allows starting processes based on file create/delete/modify.
-
-A user can be created either via CLI or REST. It is the responsibility of this service to ensure that when the user information is added to the User DB, the appropriate user and groups are also created in the `/etc/passwd` and `/etc/groups` files.
-This way, the User DB information and the Linux groups information is always in sync.
+N/A. HAM is going to be the single source of truth, and it will take care of
+synchronizing the User Table and /etc/passwd
 
 ## 3.5 SAI
 N/A
 
 ## 3.6 User Interface
 ### 3.6.1 Data Models
+
 TBD from developer
 (TODO/DELL)
 
 ### 3.6.2 CLI
 #### 3.6.2.1 Configuration Commands for User Management
-Users may be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc. They may also be managed via configuration.
+Users may be managed via Linux tools like `sonic-useradd`, `sonic-usermod`, `passwd`, etc. They may also be managed via configuration.
 
 ##### username
 `username <name> password <password-string> role <role-string>` -- Configures a user on the system with a given name, password, and role.
@@ -362,9 +384,45 @@ Users may be managed via Linux tools like `useradd`, `usermod`, `passwd`, etc. T
 `no username <name>` -- Deletes a user from the system.
 * **name** is a text string of 1-32 alphanumeric characters
 
-#### 3.6.2.2 Show Commands
-N/A
+##### aaa authentication
+```
+aaa authentication {rest-server | gnmi-server} {[password] [token] [certificate]}
+aaa authentication {rest-server | gnmi-server} certificate no-authorization
+no aaa authentication {rest-server | gnmi-server}
+```
 
+The `certificate no-authorization` mode will force users to authenticate via
+certificate, however, there will be no role lookup performed. All authenticated
+users will be treated as having full administrator access.
+
+The `no aaa ...` command will disable authentication altogether, and will allow
+all users to execute admin level commands via the REST/gNMI interfaces. The CLI
+however, will still require a valid password based login, due to it being
+accessed via SSH.
+
+##### userrole
+`userrole <name>` - Creates a new custom role and enters userrole config to
+enable/disable individual features.
+`(config-userrole)# feature <feat-name> {read-only | read-write}` - Enable
+feature `<feat-name>` with read-only or read-write access.
+`(config-userrole)# no feature <feat-name>` - Disable access to feature
+`<feat-name>`.
+
+`no userrole <name>` - Deletes a user role from the system.
+
+#### 3.6.2.2 Show Commands
+
+##### show users
+
+`show users`
+
+This will display a list of configured users on the system.
+
+##### show roles
+
+`show roles`
+
+This will display a list of configured roles on the system.
 #### 3.6.2.3 Debug Commands
 N/A
 
@@ -387,8 +445,9 @@ The gNMI server should return standard gRPC errors when authentication fails.
 ## 5.3 CLI
 Authentication errors will be handled by SSH. However, the CLI must gracefully handle authorization failures from the REST server (the authorization failure would originate from Translib of course). While the CLI will render all of the available commands to a user, the user will actually only be able to execute a subset of them. This limitation is a result of the design decision to centralize RBAC in Translib. Nevertheless, the CLI must inform the user when they attempt to execute an unauthorized command.
 
+
 ## 5.4 Translib
-Translib will authorize the user and when the authorization fails will return appropriate error string to the REST/gNMI server.
+Translib will authorize the user and when the authorization fails will return appropriate error string to the REST/gNMI server. Translib will also log an audit message with the username and the command that was attempted.
 
 If a user authenticates but is not part of one of the pre-defined groups, they will not be allowed to do anything at all on the system.
 
@@ -419,3 +478,9 @@ See previous section 1.1.3: Scalability Requirements
 | RBAC no-group | Create a user and assign them to a non-predefined group; make sure they can't perform any operations |
 | gNMI authentication | Test the same authentication methods as REST, but for gNMI instead |
 | gNMI authorization | Test the same authorization as REST, but for gNMI instead |
+| Create custom role | Create a custom role on the system with individual features |
+| Delete custom role | Delete custom role from system |
+| REST with custom role authorized | Perform authorized operations with custom role user via REST |
+| REST with custom role unauthorized | Perform unauthorized operations with custom role user via REST |
+| gNMI with custom role authorized | Perform authorized operations with custom role user via gNMI |
+| gNMI with custom role unauthorized | Perform unauthorized operations with custom role user via gNMI |
