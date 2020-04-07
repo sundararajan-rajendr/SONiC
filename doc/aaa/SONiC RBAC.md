@@ -1,6 +1,6 @@
 # Authentication and Role-Based Access Control
 # High Level Design Document
-#### Rev 1.0
+#### Rev 0.1
 
 # Table of Contents
 - [Revision History](#revision-history)
@@ -12,15 +12,13 @@
     + [1.1.1 Functional Requirements](#111-functional-requirements)
       - [1.1.1.1 NBI Authentication](#1111-nbi-authentication)
       - [1.1.1.2 CLI Authentication to REST server](#1112-cli-authentication-to-rest-server)
-      - [1.1.1.3 Translib Enforcement of RBAC](#1113-translib-enforcement-of-rbac)
+      - [1.1.1.3 REST/gNMI server authentication methods CLIs](#1113-restgnmi-server-authentication-methods-clis)
       - [1.1.1.4 Linux Groups](#1114-linux-groups)
-      - [1.1.1.5 Certificate-based Authentication for gNMI and REST](#1115-certificate-based-authentication-for-gnmi-and-rest)
+      - [1.1.1.5 Customizable roles](#1115-customizable-roles)
       - [1.1.1.6 Local User Management and UserDB Sync](#1116-local-user-management-and-userdb-sync)
     + [1.1.2 Configuration and Management Requirements](#112-configuration-and-management-requirements)
     + [1.1.3 Scalability Requirements](#113-scalability-requirements)
-      - [1.1.3.1 REST Server](#1131-rest-server)
-      - [1.1.3.2 gNMI Server](#1132-gnmi-server)
-      - [1.1.3.3 Translib](#1133-translib)
+      - [1.1.3.1 Translib](#1131-translib)
     + [1.1.4 Warm Boot Requirements](#114-warm-boot-requirements)
   * [1.2 Design Overview](#12-design-overview)
     + [1.2.1 Basic Approach](#121-basic-approach)
@@ -37,7 +35,6 @@
     + [3.2.3 STATE DB](#323-state-db)
     + [3.2.4 ASIC DB](#324-asic-db)
     + [3.2.5 COUNTER DB](#325-counter-db)
-    + [3.2.6 USER DB](#326-user-db)
   * [3.3 Switch State Service Design](#33-switch-state-service-design)
     + [3.3.1 Orchestration Agent](#331-orchestration-agent)
     + [3.3.2 Other Process](#332-other-process)
@@ -61,12 +58,11 @@
 - [7 Warm Boot Support](#7-warm-boot-support)
 - [8 Scalability](#8-scalability)
 - [9 Unit Test](#9-unit-test)
-- [10 Internal Design Information](#10-internal-design-information)
 
 # Revision History
 | Rev |     Date    |       Author       | Change Description                |
 |:---:|:-----------:|:------------------:|-----------------------------------|
-| 1.0 | 04/01/2020  | Nirenjan Krishnan  | Initial version                   |
+| 0.1 | 04/07/2020  | Nirenjan Krishnan  | Initial version                   |
 
 # About this Manual
 This document provides a high-level design approach for authentication and RBAC in the SONiC Management Framework.
