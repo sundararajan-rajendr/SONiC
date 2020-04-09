@@ -2,7 +2,7 @@
 
 ## High level design document
 
-### Rev 0.16
+### Rev 0.17
 
 ## Table of Contents
 
@@ -135,6 +135,7 @@
 | 0.14 | 12/03/2019 | Sachin Holla            | RESTCONF yang library and other enhancements |
 | 0.15 | 12/19/2019 | Partha Dutta            | Added new CVL API, platform and custom validation details |
 | 0.16 | 04/08/2020 | Sachin Holla            | API versioning enhancement |
+| 0.17 | 04/09/2020 | Kwangsuk Kim            | Updated CLI and Transformer enhancement |
 
 ## About this Manual
 
@@ -251,7 +252,7 @@ This can be an independent choice on an application by application basis. Howeve
 
 ##### 3.1.2.1 CLI
 
-1. CLI uses the KLISH framework to provide a CLI shell. The CLI request is converted to a corresponding REST client request using either libcurl or Python Requests, and is sent to the REST server.
+1. CLI uses the KLISH framework to provide a CLI shell. The CLI request is converted to a corresponding REST client request using c, and is sent to the REST server.
 2. The Swagger generated REST server handles all the REST requests from CLI and invokes a common handler for all the create, update, replace, delete and get operations along with path and payload. This common handler converts all the requests into Translib arguments and invokes the corresponding Translib provided APIs.
 3. Translib API then calls the corresponding handler defined in Common App module, subsequently invokes Transformer functions with YGOT structured request to perform model to model transformation, i.e. Openconfig  Model to SONiC model, to generate the request DB map.
 4. Common App handlers pass the request DB map to DB Access module to access REDIS Database, process the request DB map. The response to GET operation is passed to Transformer to perform reverse transformation to Openconfig Model, and wired out to CLI as JSON response.
@@ -1403,13 +1404,14 @@ CRUD requests (configuration) are processed via the following steps:
 GET requests are processed via the following steps:
 1. App module asks the transformer to translate the URL to the keyspec to the query target
 	```YANG
-	type KeySpec struct {
-        DbNum db.DBNum
-        Ts    db.TableSpec
-        Key   db.Key
-        Child []KeySpec
-        IgnoreParentKey bool
+        type KeySpec struct {
+              DbNum db.DBNum
+              Ts    db.TableSpec
+              Key   db.Key
+              Child []KeySpec
+              IgnoreParentKey bool
 	}
+	```
 2. Transformer proceeds to traverse the DB with the keyspec to get the results
 3. Transformer translate the results from ABNF to YANG, with default transformer method or callbacks
 4. Transformer aggregate the translated results, return to the App module to unmarshall the JSON payload
@@ -1600,6 +1602,7 @@ type PostXfmrFunc func (inParams XfmrParams) (map[string]map[string]db.Value, er
  * Return: List of table names, error
  **/
 type TableXfmrFunc func (inParams XfmrParams) ([]string, error)
+
 ```
 
 ###### 3.2.2.7.8 Utilities
