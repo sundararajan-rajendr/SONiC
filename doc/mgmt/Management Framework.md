@@ -566,10 +566,10 @@ Client applications can use swagger generated client SDK or any other REST clien
 
 ##### 3.2.2.3 gNMI Client
 
-SONiC Telemetry service provides the gNMI server, while the client must be provided by the user. gNMI is typically used as a programmatic interface and therefor it is typically called directly from programming language environments using their respective gRPC libraries (https://github.com/grpc/grpc). For testing and scripting purposes, several CLI programs are provided as well.
+SONiC Telemetry service provides the gNMI server, while the client must be provided by the user. gNMI is typically used as a programmatic interface and therefore it is typically called directly from programming language environments using their respective gRPC libraries (https://github.com/grpc/grpc). For testing and scripting purposes, several CLI programs are provided as well.
 
 GNMI clients developed by google and modified by JipanYANG.(github.com/jipanYANG/gnxi/gnmi_get, github.com/jipanYANG/gnxi/gnmi_set)
-was taking and further modified to support new features. gnmi_cli from openconfig (https://github.com/openconfig/gnmi/tree/master/cmd/gnmi_cli) is also taken for testing subscribe and capabilities operations. Finally, and new client was developed gnoi_client, for test gNOI RPC operations.
+was taken and further modified to support new features. gnmi_cli from openconfig (https://github.com/openconfig/gnmi/tree/master/cmd/gnmi_cli) is also taken for testing subscribe and capabilities operations. Finally, a new client was developed gnoi_client, for test gNOI RPC operations.
 
 Note: Although the gRPC protocol allows for many encodings to be used, our usage is restricted to JSON_IETF encoding.
 
@@ -581,12 +581,12 @@ Supported RPC Operations:
     + Replace: List of one or objects to replace existing objects, any unspecified fields wil be defaulted.
     + Delete: List of one or more object paths to delete
 - Capabilities: Return gNMI version and list of supported models and model versions.
-    + An gNMI Extension field has been added as well to return the SONiC model "bundle version".
+    + A gNMI Extension field has been added as well to return the SONiC model "bundle version".
 - Subscribe:
     + Subscribe to paths using either streaming or poll, or once based subscription, with either full current state or updated values only.
         * Once: Get single subscription message.
         * Poll: Get one subscription message for each poll request from the client.
-        * Stream: Get one subscription message for each object update (called ON_CHANGE mode), or at each sample interval if using sample mode. target_defined uses the values pre-configured for that particular object. Not all paths support ON_CHANGE mode due to performance considerations, while all paths will support sample mode and therfore target defined as well since it will default to sample if ON_CHANGE is not supported.
+        * Stream: Get one subscription message for each object update (called ON_CHANGE mode), or at each sample interval if using sample mode. target_defined uses the values pre-configured for that particular object. Not all paths support ON_CHANGE mode due to performance considerations, while all paths will support sample mode and therefore target defined as well since it will default to sample if ON_CHANGE is not supported.
 
 
 Example Client Operations:
