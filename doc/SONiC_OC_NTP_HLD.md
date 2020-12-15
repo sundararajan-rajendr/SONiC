@@ -25,6 +25,7 @@ NTP Support in Management Framework
 | 0.5 | 11/08/2020 |   Bing Sun         | Allow configuration of multiple NTP source interfaces|
 | 0.6 | 12/07/2020 |   Bing Sun         | Updated section 3.2 configDB changes |
 |     |            |                    | Minor change for Yang models         |
+| 0.7 | 12/15/2020 |   Bing Sun         | Add minpoll and maxpoll              |
   
   
 # About this Manual
@@ -60,6 +61,7 @@ In addition, it provides the following configuration,
 - NTP source interfaces        
 - NTP vrf         
 - NTP authentication
+- per NTP server minpoll and maxpoll
                  
 ## 1.1 Requirements
 
@@ -132,7 +134,7 @@ ntp service always starts in default vrf context
 ##### NTP source interface related      
 a.if a NTP source interface has IP address configured, the IP address will be used as source ip for all NTP packets exchanged with the respective NTP servers/clients    
 b.if a NTP source interface has no IP address configured, it is not being considered as an NTP source interface     
- 
+        
 #### 1.1.1.6 NTP authentication configuration
 NTP authentication enables an NTP client or peer to authenticate time received from their servers and peers.
 
@@ -152,7 +154,7 @@ ntp authentication-key 2 md5 ntp_client2
     
 NTP client uses this command to define an authentication key with key number, authentication type and password.     
 The key number is from 1 to 65535.     
-The authentication type supported is MD5, SHA1 and SHA2-256.     
+The authentication types supported are md5, sha1, sha2-256.     
 The password is configured with plaintext the first time. In runnning-configuration, it is encrypted and is indicated with "encrypted" at the end. Authentication key can then be configured with the encrypted format and "encrypted" flag. 
       
     
@@ -173,6 +175,18 @@ ntp server 99.1.1.1 key 1
      
 NTP client uses this command to configure the key expected from a specific NTP server.        
 
+        
+#### 1.1.1.7 Per NTP server minpoll and maxpoll configuration
+        
+Minpoll and maxpoll are poll exponent for minimum poll interval and maximum poll interval. The actual minimum and maximum poll intervals are calculated as a power of 2.       
+By default, NTP daemon uses 6 for minpoll and 10 for maxpoll, which translates to 64 seconds for minimum poll interval and 1024 seconds for maximum poll interval.       
+        
+User can configure minpoll and maxpoll for a specific NTP server. If user chooses to configure, both minpoll and maxpoll have to be specified. Minpoll and maxpoll are in the range of 4 to 17.
+        
+```
+ntp server 10.14.8.140 minpoll 6 maxpoll 8
+``` 
+        
 ### 1.1.2 Backend mechanisms to support configuration and get
 
 #### 1.1.2.1 add/delete NTP server
@@ -324,7 +338,7 @@ The file /etc/ntp.conf will be generated with the same key number for that NTP s
 ```
 server 99.1.1.1 iburst key 1
 ```
-         
+        
 ##### 1.1.2.5.5 Sample NTP authentication CLI commands on NTP server and NTP client    
 ```
 NTP master ------------------------- SONiC switch ----------------------------------server
@@ -349,7 +363,7 @@ sonic(config)#ip vrf mgmt
 ###### Relevant CLI commands on SONiC switch as NTP client 
 ```
 sonic(config)#ntp authenticate
-sonic(config)#ntp authentication-key 1 MD5 force
+sonic(config)#ntp authentication-key 1 md5 force
 sonic(config)#ntp trusted-key 1
 sonic(config)#ntp server 100.94.121.15 key 1
 sonic(config)# ntp source-interface Management 0
@@ -366,7 +380,7 @@ sonic(config)# ntp source-interface Vlan 100
 On the SONiC switch
 
 sonic(config)#ntp authenticate
-sonic(config)#ntp authentication-key 2 MD5 jungle 
+sonic(config)#ntp authentication-key 2 md5 jungle 
 sonic(config)#ntp trusted-key 2
 sonic(config)# ntp source-interface Loopback 100
 sonic(config)#ip vrf mgmt
@@ -376,11 +390,32 @@ sonic(config)#ip vrf mgmt
 On the server
 
 sonic(config)#ntp authenticate
-sonic(config)#ntp authentication-key 2 MD5 jungle
+sonic(config)#ntp authentication-key 2 md5 jungle
 sonic(config)#ntp trusted-key 2
 sonic(config)#ntp server 2001:aa:aa::1 key 2 
 sonic(config)# ntp source-interface Vlan 100 
 
+```
+        
+#### 1.1.2.6 Minpoll and Maxpoll
+      
+When configured, /etc/ntp.conf will have minpoll and maxpoll associated with the specific NTP server.
+
+```
+server 10.14.8.140 iburst maxpoll 8 minpoll 6
+
+```
+        
+In configDB, NTP server entry will be updated with the minpoll and maxpoll values.      
+      
+```
+ "NTP_SERVER|10.14.8.140": {
+    "type": "hash",
+    "value": {
+      "maxpoll": "8",
+      "minpoll": "6"
+    }
+  }
 ```
         
 ### 1.1.3 Functional Requirements      
@@ -390,6 +425,7 @@ Provide management framework support to
 - configure NTP source interface         
 - configure NTP vrf      
 - configure NTP authentication
+- configure per NTP server minpoll and maxpoll
     
 ### 1.1.4 Configuration and Management Requirements    
 - CLI style configuration and show commands   
@@ -405,7 +441,7 @@ Details described in Section 3.
 ### 1.1.6 Scalability Requirements             
 Interface listening will not be enabled on all L3 interfaces. User can configure NTP source interfaces which are only a few.            
 Ntpd runs in one VRF context, default vrf or mgmt vrf.    
-Multiple ntp servers supported, also only a few.           
+Maximum of 10 NTP servers can be configured.           
     
 ### 1.1.7 Warm Boot Requirements         
 NA
@@ -445,7 +481,7 @@ SONiC click CLI enhancement if possible.
 If the management IP address is acquired via DHCP, and if the NTP server option specifies the NTP server, /etc/dhcp/dhclient-exit-hooks.d/ntp script will generate the file /var/lib/ntp/ntp.conf.dhcp. This file is a copy of the default /etc/ntp.conf with a modified server list from the DHCP server. 
 NTP daemon only uses one of the 2 files, and /var/lib/ntp/ntp.conf.dhcp takes precedence over the default /etc/ntp.conf. It is the existing behavior and is out of the scope of this HLD.
 
-NTP source-interface, NTP vrf and NTP authentication discussed in the HLD are only guaranteed to take effect on the static configured NTP servers.
+NTP source-interface, NTP vrf, NTP authentication, minpoll and maxpoll discussed in the HLD are only guaranteed to take effect on the static configured NTP servers.
 For acquired NTP servers from DHCP server, NTP source-interface, NTP vrf and NTP authentication will only take effect if /var/lib/ntp/ntp.conf.dhcp is generated based on the /etc/ntp.conf with user configured NTP source-interface and NTP authentication.
 
 Applying the configured NTP source-interface, NTP vrf and NTP authentication to acquired NTP servers from the DHCP server is not a requirement for this release.
@@ -474,7 +510,11 @@ NTP server
         "4.4.4.4": {        
             "key_id": "3"        
         },        
-        "10.14.8.140": {}        
+        "10.14.8.140": {
+            "key_id": "4",
+            "maxpoll": "8",
+            "minpoll": "6"
+        }
     }        
 ```
        
@@ -590,6 +630,8 @@ Supported yang objects and attributes:
       |        |  +--rw iburst?             boolean
       |        |  +--rw prefer?             boolean
 +     |        |  +--rw oc-sys-ext:key-id?   uint16
++     |        |  +--rw oc-sys-ext:minpoll?   uint8
++     |        |  +--rw oc-sys-ext:maxpoll?   uint8
 +     |        +--ro state
 +     |           +--ro address?                 oc-inet:host
       |           +--ro port?                    oc-inet:port-number
@@ -603,6 +645,8 @@ Supported yang objects and attributes:
       |           +--ro offset?                  uint64
 +     |           +--ro poll-interval?           uint32
 +     |           +--rw oc-sys-ext:key-id?       uint16
++     |           +--rw oc-sys-ext:minpoll?      uint8
++     |           +--rw oc-sys-ext:maxpoll?      uint8
 +     |           +--ro oc-sys-ext:peerdelay?    decimal64
 +     |           +--ro oc-sys-ext:peeroffset?   decimal64
 +     |           +--ro oc-sys-ext:peerjitter?   decimal64
@@ -632,6 +676,8 @@ module: sonic-system-ntp
 +        +--rw NTP_SERVER_LIST* [server_address]
 +           +--rw server_address    inet:host
 +           +--rw key_id?           -> /sonic-system-ntp/NTP_AUTHENTICATION_KEY/NTP_AUTHENTICATION_KEY_LIST/id
++           +--rw minpoll?          uint8
++           +--rw maxpoll?          uint8
 ```
 
 ### 3.6.2 CLI
@@ -805,7 +851,25 @@ sonic(config)#ntp server 99.1.1.1 key 1
 ```
 sonic(config)#no ntp server 99.1.1.1
 ```
-     
+
+##### 3.6.2.1.15 Add NTP server with minpoll and maxpoll
+```
+sonic(config)# ntp server 10.14.8.140 
+  key      NTP server authentication key
+  minpoll  NTP minimum poll interval to poll server
+  <cr>
+sonic(config)# ntp server 10.14.8.140 minpoll 6
+  maxpoll  NTP maximum poll interval to poll server
+sonic(config)# ntp server 10.14.8.140 minpoll 6 maxpoll
+  <4..17>  NTP maximum poll interval for NTP messages, in seconds as a power of two
+sonic(config)# ntp server 10.14.8.140 minpoll 6 maxpoll 8
+```
+             
+##### 3.6.2.1.16 Delete NTP server with minpoll and maxpoll
+```
+sonic(config)#no ntp server 10.14.8.140
+```
+      
 #### 3.6.2.2 Show ntp
 ```
 sonic# show ntp
@@ -831,11 +895,12 @@ sonic# show ntp associations
 ##### 3.6.2.2.2 Show configured ntp servers
 ```
 sonic# show ntp server
---------------------------------
-NTP Servers
---------------------------------
+----------------------------------------------------------------------
+NTP Servers                     minpoll maxpoll Authentication key ID
+----------------------------------------------------------------------
 10.11.0.1
 10.11.0.2
+12.12.12.12                      6       8       4 
 ```
     
 ##### 3.6.2.2.3 Show global ntp configurations
@@ -870,34 +935,29 @@ ntp trusted-keys 1
 ntp trusted-keys 2 
 !
 
-sonic(config)#ntp server 10.11.0.1
+sonic(config)#ntp server 10.11.0.1 key 1
+sonic(config)#ntp server 10.11.0.1 minpoll 6 maxpoll 8
 sonic(config)#ntp server pool.ntp.org
 sonic(config)#ntp source-interface Management 0
 sonic(config)#ntp source-interface Loopback 100 
 sonic(config)#do show running-configuration 
 !
-ntp server 10.11.0.1
+ntp server 10.11.0.1 key 1
+ntp server 10.11.0.1 minpoll 6 maxpoll 8
 ntp server pool.ntp.org
 ntp source-interface Management 0
 ntp source-interface Loopback 100 
 !
 
-sonic(config)# no ntp source-interface Loopback 100 
 sonic(config)# ntp vrf mgmt 
 sonic(config)# do show running-configuration 
 !
-ntp server 10.11.0.1
-ntp server pool.ntp.org
-ntp source-interface Management 0
 ntp vrf mgmt
 !
 
 sonic(config)# ntp vrf default 
 sonic(config)# do show running-configuration
 !
-ntp server 10.11.0.1
-ntp server pool.ntp.org
-ntp source-interface Management 0
 ntp vrf default
 !
 
@@ -933,6 +993,10 @@ ifconfig lo-m
 show mgmt-vrf
 
 ntpq -pn
+
+ntpq>as
+ntpq>pstat <assid>
+ntpq>rv <assid>
 
 ```
     
@@ -983,6 +1047,8 @@ The unit-test for this feature will include:
 |                                            | Verify that NTP authentication can be enabled and disabled|
 |                                            | Verify NTP server is accepted if authentication keys match on NTP server and NTP client|
 |                                            | Verify NTP server is rejected if authentication keys mismatch on NTP server and NTP client|
+| Configure per NTP server minpoll and maxpoll | Verify that NTP server in /etc/ntp.conf is updated with minpoll and max poll |
+|                                              | Verify that "show ntp association" is using the configured minpoll and maxpoll |
 | show ntp associations | Verify ntp associations are displayed correctly |
 | show ntp server       | Verify ntp servers are displayed correctly |
 | show ntp global       | Verify ntp global configurations are displayed correctly |
