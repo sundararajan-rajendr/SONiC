@@ -935,15 +935,13 @@ ntp trusted-keys 1
 ntp trusted-keys 2 
 !
 
-sonic(config)#ntp server 10.11.0.1 key 1
-sonic(config)#ntp server 10.11.0.1 minpoll 6 maxpoll 8
+sonic(config)#ntp server 10.11.0.1 key 1 minpoll 6 maxpoll 8
 sonic(config)#ntp server pool.ntp.org
 sonic(config)#ntp source-interface Management 0
 sonic(config)#ntp source-interface Loopback 100 
 sonic(config)#do show running-configuration 
 !
-ntp server 10.11.0.1 key 1
-ntp server 10.11.0.1 minpoll 6 maxpoll 8
+ntp server 10.11.0.1 key 1 minpoll 6 maxpoll 8
 ntp server pool.ntp.org
 ntp source-interface Management 0
 ntp source-interface Loopback 100 
