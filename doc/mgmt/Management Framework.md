@@ -70,6 +70,7 @@
                 * [3.2.2.5.9 Payload Validations](#32259-payload-validations)
                 * [3.2.2.5.10 Concurrency](#322510-concurrency)
                 * [3.2.2.5.11 API Versioning](#322511-api-versioning)
+                * [3.2.2.5.12 gNOI RPCs](#322512-gnoi-rpcs)
 
             * [3.2.2.6 Translib](#3226-Translib)
                 * [3.2.2.6.1 App Interface](#32261-app-interface)
@@ -1064,7 +1065,7 @@ definition files (both YANG generated and manual) along with link to open OpenAP
 4. The Translib client is used to provide alternative models of access such as Openconfig models as opposed to the native Redis schema, as long as the Translib supports these models. Translib offers bidirectional translation between the native Redis model and the desired north bound model, as well as notifications/updates on these model objects to support telemetry and asynchronous updates, alarms and events. Translib should also provide information about what models it supports so that information can be returned in gNMI Capabilities response.
 5. The gNMI server defines the four RPC functions as required by the gNMI Specification: Get, Set, Capabilities and Subscribe.
 6. Since the db, non-db and Translib clients offer the functionality to support these functions, gNMI only has to translate the paths and object payloads into the correct parameters for the client calls and package the results back into the response gNMI objects to return to the gNMI Client, which is a straightforward operation, since no additional processing of the data is expected to be done in the gNMI server itself. When new models are added to Translib, no additional work should be required to support them in gNMI server.
-7. All operations in a Set request are processed in a single transaction that will either succeed or fail as one operation. The db, non-db and Translib clients must support a Bulk operation in order to achieve the transactional behavior. gNMI server then must use this Bulk operation for Set requests.
+7. All operations in a Set request are processed in a single transaction that will either succeed or fail as one operation. The translib client supports a Bulk operation in order to achieve the transactional behavior of multiple set operations. The order in which multiple set operations occures in a single set request is defined in the [gNMI Specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#34-modifying-state). Care must be taking when doing bulk operations that the objects being operated on are created before performing further operations on them. Otherwise an error may be returned.
 8. Subscribe operations: Once, Poll and Stream require that the gRPC connection remain open until the subscription is completed. This means many connections must be supported. Subscribe offers several options, such as only sending object updates (not the whole object) which requires support form the db clients. Subscribe also allows for periodic sampling defined by the client. This must be handled in the gNMI agent itself. This requires a timer for each subscribe connection of this type in order to periodically poll the db client and return the result in a Subscribe Response. These timers should be destroyed when the subscription gRPC connection is closed.
 
 ###### 3.2.2.5.1 Files changed/added:
@@ -1189,6 +1190,18 @@ Section [3.2.2.6.4.2](#322642-version-checks) explains Translib version checking
 Version checks are bypassed if Accept-Version header is not present in the request.
 
 For YANG defined RESTCONF APIs, the server's version can be discovered through the standard Capabilities gNMI RPC.
+
+###### 3.2.2.5.12 gNOI RPCs
+
+Along with gNMI RPCS (GET,SET,SUBSCRIBE,CAPABILITIES), custom RPCs are exposed on the [gNOI](https://github.com/openconfig/gnoi) server on the same port as gNMI server. 
+
+gNOI Allows the gNMI server to add custom RPC operations. gNOI Provides a number of standardized RPCs, however currently on the the system/Time RPC is available from those RPCs.
+
+OpenConfig and Sonic customer RPCs are also available via gNOI via the sonic_gnoi.proto file in the telemetry repository. This file provides the protobuf definition for calling these RPCs as well as the format of their arguments and their responses.
+
+Also, the JWT authentication method uses two custom RPCs called Authenticate and Refresh to manage the JWT tokens. These RPCs are available in the sonic_gnoi_jwt.proto file in the telemetry repository. 
+
+For gNOI client usage examples see [3.2.2.3](#3223-gnmi-client)
 
 
 ##### 3.2.2.6 Translib
