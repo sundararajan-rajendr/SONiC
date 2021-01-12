@@ -1188,13 +1188,18 @@ Section [3.2.2.6.4.2](#322642-version-checks) explains Translib version checking
 
 Version checks are bypassed if BundleVersion header is not present in the request.
 
-For YANG defined APIs, the server's version can be discovered through the standard Capabilities gNMI RPC.
+For YANG defined APIs, the server's version can be discovered through the standard Capabilities gNMI RPC. The capabilities response will also contain an extension field SupportedBundleVersions with extension id 701.
 
-The gNMI protobuf extension field is defined as follows in the sonic.proto file in the telemetry repository:
+The gNMI protobuf extension fields are defined as follows in the sonic.proto file in the telemetry repository:
 
     message BundleVersion {
       string version = 1;
     }
+    message SupportedBundleVersions {
+      string bundle_version = 1;
+      string base_version = 2;
+    }
+
 
 
 ###### 3.2.2.5.12 gNOI RPCs
