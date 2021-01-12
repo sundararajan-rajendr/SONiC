@@ -1190,7 +1190,7 @@ Version checks are bypassed if BundleVersion header is not present in the reques
 
 For YANG defined APIs, the server's version can be discovered through the standard Capabilities gNMI RPC.
 
-The gNMI protobuf extension field is defined as follows:
+The gNMI protobuf extension field is defined as follows in the sonic.proto file in the telemetry repository:
 
     message BundleVersion {
       string version = 1;
