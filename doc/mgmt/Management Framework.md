@@ -59,7 +59,7 @@
                 * [3.2.2.4.14 DB Schema](#322414-db-schema)
                 * [3.2.2.4.15 API Documentation](#322415-api-documentation)
             * [3.2.2.5 gNMI server](#3225-gnmi-server)
-                * [3.2.2.5.1 Files changed/added](#32251-files-changed/added)
+                * [3.2.2.5.1 Files changed and added](#32251-files-changed-and-added)
                 * [3.2.2.5.2 Sample Requests](#32252-sample-requests)
                 * [3.2.2.5.3 Authentication](#32253-authentication)
                 * [3.2.2.5.4 Error Response](#32254-error-response)
@@ -1068,7 +1068,7 @@ definition files (both YANG generated and manual) along with link to open OpenAP
 7. All operations in a Set request are processed in a single transaction that will either succeed or fail as one operation. The translib client supports a Bulk operation in order to achieve the transactional behavior of multiple set operations. The order in which multiple set operations occures in a single set request is defined in the [gNMI Specification](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#34-modifying-state). Care must be taking when doing bulk operations that the objects being operated on are created before performing further operations on them. Otherwise an error may be returned.
 8. Subscribe operations: Once, Poll and Stream require that the gRPC connection remain open until the subscription is completed. This means many connections must be supported. Subscribe offers several options, such as only sending object updates (not the whole object) which requires support form the db clients. Subscribe also allows for periodic sampling defined by the client. This must be handled in the gNMI agent itself. This requires a timer for each subscribe connection of this type in order to periodically poll the db client and return the result in a Subscribe Response. These timers should be destroyed when the subscription gRPC connection is closed.
 
-###### 3.2.2.5.1 Files changed/added:
+###### 3.2.2.5.1 Files changed and added:
 
     |-- gnmi_server
     |   |-- client_subscribe.go
@@ -1114,7 +1114,7 @@ gNMI Server already has a ConfigDB table "TELEMETRY|gnmi" but some keys have bee
 
 ```
 key      = TELEMETRY|gnmi   ; gNMI Server configurations
-
+port        = 1*5DIGIT              ; server port - defaults to 8080
 client_auth = "none" / "password" / "jwt" / "cert" 
                                     ; Client authentication mode.
                                     ; none: No authentication, all clients
@@ -1169,8 +1169,7 @@ gNMI Currently only supports JSON_IETF type encoding in the same was as REST ser
 
 ###### 3.2.2.5.9 Payload Validations
 
-gNMI server does not validate request payload for YANG defined RESTCONF APIs.
-Payload will be validated automatically in lower layers when it gets loaded
+gNMI server does not validate request payload. Payload will be validated automatically in lower layers when it gets loaded
 into YGOT bindings.
 
 ###### 3.2.2.5.10 Concurrency
@@ -1187,9 +1186,16 @@ Version text should be in **MAJOR.MINOR.PATCH** format. gNMI server will extract
 the gNMI request protobuf object and pass it to the Translib API as **ClientVersion** argument.
 Section [3.2.2.6.4.2](#322642-version-checks) explains Translib version checking logic.
 
-Version checks are bypassed if Accept-Version header is not present in the request.
+Version checks are bypassed if BundleVersion header is not present in the request.
 
-For YANG defined RESTCONF APIs, the server's version can be discovered through the standard Capabilities gNMI RPC.
+For YANG defined APIs, the server's version can be discovered through the standard Capabilities gNMI RPC.
+
+The gNMI protobuf extension field is defined as follows:
+
+    message BundleVersion {
+      string version = 1;
+    }
+
 
 ###### 3.2.2.5.12 gNOI RPCs
 
