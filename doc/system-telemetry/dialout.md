@@ -5,7 +5,6 @@
 - [List of Tables](#list-of-tables)
 - [Revision](#revision)
 - [About this Manual](#about-this-manual)
-- [Scope](#scope)
 - [Definition/Abbreviation](#definitionabbreviation)
 - [Table 1: Abbreviations](#table-1-abbreviations)
 - [1 Feature Overview](#1-Feature-Overview)
