@@ -324,6 +324,7 @@ path = /openconfig-interfaces:interfaces/interface[name=Ethernet0]/state
 }
 ```
 
+The above PROTO encoding is generated from the openconfig YANG models, converted to protobuf using the proto_generator provided by openconfig ygot available here: https://github.com/openconfig/ygot/tree/master/proto_generator . These protobuf files can be compiled into language specific libraries using the protoc compiler available here: https://grpc.io/docs/protoc-installation/ .
 
 
 # 4 Configuration
