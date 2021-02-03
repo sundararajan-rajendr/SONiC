@@ -18,6 +18,7 @@
     - [3.1 Overview](#31-Overview)
         - [3.1.1 Service and Docker Management](#311-Service-and-Docker-Management)
         - [3.1.2 Packet Handling](#312-Packet-Handling)
+        - [3.1.3 Encoding](#313-Encoding)
 - [4 Configuration](#4-Configuration)
   - [4.1 Manual redis Configuration](#4-Manual-redis-Configuration)
   - [4.2 Openconfig Telemetry Configuration](#4.2-Openconfig-Telemetry-Configuration)
@@ -200,6 +201,129 @@ update: <
 ### 3.1.2 Packet Handling
 
 The dial-out telemetry proces will initiate the connections via gRPC protocol. The gRPC protocol uses TCP connections that can either be unencrypted or encrypted with TLS. The user configuration will determine the destination IP and ports that are used. The source-ip is configurable in the dial-out configuration as well.
+
+### 3.1.3 Encoding
+
+Dial-out telemetry supports two encoding type, JSON_IETF and PROTO. JSON_IETF is the standard JSON encoding defined by RFC https://tools.ietf.org/html/rfc7951. PROTO encoding is defined in the gNMI specification as:
+
+```
+Data encoded using the PROTOBUF type (i.e., within the any_val field) contains a serialised protobuf message using protobuf.Any. Note that in the case that the sender utilises this type, the receiver must understand the schema (and hence the type of protobuf message that is serialised) in order to decode the value. Such agreement is not guaranteed by the protocol and hence must be established out-of-band.
+```
+
+Example JSON_IETF Message:
+
+path = /openconfig-interfaces:interfaces/interface[name=Ethernet0]/state
+
+```
+{
+  "openconfig-interfaces:state": {
+    "admin-status": "UP",
+    "counters": {
+      "in-broadcast-pkts": "0",
+      "in-discards": "0",
+      "in-errors": "0",
+      "in-multicast-pkts": "0",
+      "in-octets": "0",
+      "in-pkts": "0",
+      "in-unicast-pkts": "0",
+      "last-clear": "0",
+      "openconfig-interfaces-ext:in-bits-per-second": "0",
+      "openconfig-interfaces-ext:in-octets-per-second": "0",
+      "openconfig-interfaces-ext:in-pkts-per-second": "0",
+      "openconfig-interfaces-ext:in-utilization": 0,
+      "openconfig-interfaces-ext:out-bits-per-second": "0",
+      "openconfig-interfaces-ext:out-octets-per-second": "0",
+      "openconfig-interfaces-ext:out-pkts-per-second": "0",
+      "out-broadcast-pkts": "0",
+      "out-discards": "0",
+      "out-errors": "0",
+      "out-multicast-pkts": "0",
+      "out-octets": "0",
+      "out-pkts": "0",
+      "out-unicast-pkts": "0"
+    },
+    "description": "",
+    "enabled": true,
+    "mtu": 9100,
+    "name": "Ethernet0",
+    "openconfig-interfaces-ext:rate-interval": 10,
+    "oper-status": "DOWN"
+  }
+}
+
+```
+
+Example PROTO Message (in protobuf text format):
+
+path = /openconfig-interfaces:interfaces/interface[name=Ethernet0]/state
+
+```
+[type.googleapis.com/openconfig.openconfig_interfaces.Interfaces.Interface.State] {
+  counters {
+    in_discards {
+    }
+    out_unicast_pkts {
+    }
+    in_multicast_pkts {
+    }
+    in_bits_per_second {
+    }
+    out_pkts_per_second {
+    }
+    last_clear {
+    }
+    out_octets {
+    }
+    out_discards {
+    }
+    in_unicast_pkts {
+    }
+    in_broadcast_pkts {
+    }
+    in_octets_per_second {
+    }
+    out_bits_per_second {
+    }
+    in_octets {
+    }
+    out_octets_per_second {
+    }
+    out_broadcast_pkts {
+    }
+    in_pkts {
+    }
+    in_utilization {
+    }
+    out_pkts {
+    }
+    in_errors {
+    }
+    out_multicast_pkts {
+    }
+    in_pkts_per_second {
+    }
+    out_errors {
+    }
+  }
+  mtu {
+    value: 9100
+  }
+  rate_interval {
+    value: 10
+  }
+  enabled {
+    value: true
+  }
+  description {
+  }
+  oper_status: OPERSTATUS_DOWN
+  admin_status: ADMINSTATUS_UP
+  name {
+    value: "Ethernet0"
+  }
+}
+```
+
 
 
 # 4 Configuration
