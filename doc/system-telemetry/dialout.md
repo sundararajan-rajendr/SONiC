@@ -70,13 +70,13 @@ The subscription modes supported for dial-out are periodic samples, defined by t
 
 ## 1.2 Requirements
 
-1. Telemetry process will open gRPC(TCP) connection to collector(s) configured for each subscription and maintain the connection until the subscription is removed.
+1. Dial-out telemetry process will open gRPC(TCP) connection to collector(s) configured for each subscription and maintain the connection until the subscription is removed.
 2. If the collector closes the connection, or the connection was never successfully established, the telemetry process will periodically retry to establish the connection indefinitely.
-3. The telemetry process will support encrypted (TLS) and un-encrypted connections.
+3. The dial-out telemetry process will support encrypted (TLS) and un-encrypted connections.
 4. The dial-out mode will support both sample and ON_CHANGE subscriptions (on supported fields)
 5. Allow configuration of openconfig-telemetry model via REST and gNMI.
-6. Telemetry process will respond to updated configuration automatically.
-7. Telemetry process will load configuration on startup.
+6. Dial-out telemetry process will respond to updated configuration automatically.
+7. Dial-out telemetry process will load configuration on startup.
 8. The telemetry container will recover when restarted and the telemetry connections will be dropped until the container is back up. Telemetry updates will be missed during this time.
 9. Configuration of OC Telemetry will return an error on invalid configuration.
 10. Dial-out telemetry will support both JSON_IETF and Protobuf encodings.
@@ -198,7 +198,9 @@ update: <
 
 ### 3.1.2 Packet Handling
 
-The dial-out telemetry proces will initiate the connections via gRPC protocol. The gRPC protocol uses TCP connections that can either be unencrypted or encrypted with TLS. The user configuration will determine the destination IP and ports that are used. The source-ip is configurable in the dial-out configuration as well.
+The dial-out telemetry process will initiate the connections via gRPC protocol. The gRPC protocol uses TCP connections that can either be unencrypted or encrypted with TLS. The user configuration will determine the destination IP and ports that are used. The source-ip is configurable in the dial-out configuration as well.
+
+The gRPC connections will silently try to connect to the server in the background. When the connection is successfully established, it will begin the subscription by sending the initial data followed by a sync response. If the gRPC connection is lost, it will again begin to try an re-establish the connection in the background indefinitely. If the connection is successfully re-established, the subscription will be restarted.
 
 ### 3.1.3 Encoding
 
@@ -623,7 +625,7 @@ $ curl -s -k https://100.94.162.19/restconf/data/openconfig-telemetry:telemetry-
 
 # 5 Error Handling
 
-Error handling happens in two locations: Configuration and Run-time. During configuration of the openconfig-telemetry model, translib transformer will perform validity checks on the models data and return an error if it is invalid. During run-time, if destination collectors are not reachable, dial-out process will periodically re-try to establish the connection with appropriate log messages. In the case of an invalid path, there will be a log message indicating that the path could not be retrieved.
+Error handling happens in two locations: Configuration and Run-time. During configuration of the openconfig-telemetry model, translib transformer will perform validity checks on the models data and return an error if it is invalid. During run-time, if destination collectors are not reachable, dial-out process will periodically re-try to establish the connection with appropriate log messages. In the case of an invalid path, there will be a log message indicating that the path could not be retrieved, but other paths will continue to be delivered.
 
 # 6 Testing
 
