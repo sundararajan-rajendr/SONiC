@@ -70,8 +70,6 @@ The subscription modes supported for dial-out are periodic samples, defined by t
 
 ## 1.2 Requirements
 
-*Fill out with detailed, immutably numbered requirements from which test cases can be generated. A structured numbering scheme is used using the following sections. Some sections may be omitted according to the needs of the feature: -*
-
 1. Telemetry process will open gRPC(TCP) connection to collector(s) configured for each subscription and maintain the connection until the subscription is removed.
 2. If the collector closes the connection, or the connection was never successfully established, the telemetry process will periodically retry to establish the connection indefinitely.
 3. The telemetry process will support encrypted (TLS) and un-encrypted connections.
