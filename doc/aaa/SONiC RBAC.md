@@ -64,6 +64,7 @@
 |:---:|:-----------:|:------------------:|-----------------------------------|
 | 0.1 | 04/07/2020  | Nirenjan Krishnan  | Initial version                   |
 | 0.2 | 06/12/2020  | Nirenjan Krishnan  | Update with review comments       |
+| 0.3 | 12/07/2020  | Garrick He         | Add customizble roles support     |
 
 # About this Manual
 This document provides a high-level design approach for authentication and RBAC in the SONiC Management Framework.
@@ -163,49 +164,115 @@ run `system` commands from KLISH.
 
 #### 1.1.1.5 Customizable roles
 
-**This is planned for future support.**
-
-Admin users shall be able to create customizable roles for further granularity beyond read-only and read-write. For instance, a `secadmin` role shall allow the users to configure security parameters on the switch. The custom role shall have a default deny policy. Custom roles shall map a set of features, and their access level to the feature. A feature is a set of YANG paths. The default policy is no access to a feature, if it is not specified in the role.
+Admin users shall be able to create customizable roles for further granularity beyond read-only and read-write. For instance, a `secadmin` role shall allow the users to configure security parameters on the switch. The custom role shall have a default deny policy and for rules with conflicting YANG paths, deny will take precendence.
 
 ```
-[
-  {
-    "name": "secadmin",
-    "features": [
-        {
-            "feature": "aaa",
-            "access": "rw"
-        },
-        {
-            "feature": "net",
-            "access": "ro"
+"roles" : {
+     "sysadmin" : {
+        "role": "sysadmin",
+        "roleGrp:": "admin",
+        "roleDesc:": "System administrator",
+        "rules": {
+            "rpc: {
+                "rule": "rpc",
+                "permit": ["*"]
+            },
+            "notif": {
+                "rule": "notif",
+                "permit": ["*"]
+            },
+            "write": {
+                "rule": "write",
+                "permit": ["*"]
+            },
+            "read": {
+                "rule": "read",
+                "permit": ["*"],
+            }
         }
-    ]
-  }
-]
-```
-
-Features map to a set of YANG paths. The features are saved in the
-ResourceTable, but a default feature set is defined in the system to allow users
-to start from a known state. Sample feature description is shown below.
-
-```
-[
-    {
-        "name": "aaa",
-        "paths": [
-            "openconfig-aaa:aaa/system/users/user={username}",
-            "openconfig-aaa:aaa/system/users"
-        ]
     },
-    {
-        "name": "net",
-        "paths": [
-            "openconfig-net:net/xyz"
-        ]
+    "secadmin" : {
+        "role": "secadmin",
+        "roleGrp": "admin",
+        "roleDesc:": "Security administrator",
+        "rules": {
+            "rpc: {
+                "rule": "rpc",
+                "deny": ["*"]
+            },
+            "notif": {
+                "rule": "notif",
+                "permit": ["*"]
+            },
+            "write": {
+                "rule": "write",
+                "permit": ["*"],
+                "deny": ["/openconfig-interfaces:interfaces/*"]
+            },
+            "read": {
+                "rule": "read",
+                "permit": ["*"]
+            }
+        }
+    },
+    "operator" : {
+        "role": "operator",
+        "roleGrp": "operator",
+        "roleDesc": "System operator",
+        "rules": {
+            "rpc: {
+                "rule": "rpc",
+                "deny": ["*"]
+            },
+            "notif": {
+                "rule": "notif",
+                "deny": ["*"]       
+            },
+            "write": {
+                "rule": "write",
+                "deny": ["*"]
+            },
+            "read": {
+                "rule": "read",
+                "permit": ["*"]
+            }
+        }
+    },
+    "default" : {
+        "role": "default",
+        "roleGrp": "operator",
+        "roleDesc": "The default role",
+        "rules": {
+            "rpc: {
+                "rule": "rpc",
+                "deny": ["*"]
+            },
+            "notif": {
+                "rule": "notif",
+                "deny": ["*"]       
+            },
+            "write": {
+                "rule": "write",
+                "deny": ["*"]
+            },
+            "read": {
+                "rule": "read",
+                "deny": ["*"],
+            }
+        }
     }
-]
+}
 ```
+
+**Role to Group Mapping**
+
+In order to map various roles to Linux group(s). All custom roles will have a `roleGrp` field defined. The roleGrp will be mapped back to Linux Groups.
+
+| RoleGrp  |     Linux Group(s)  |
+|:--------:|:--------------------|
+| admin    | docker, sudo        |
+| operator | docker              |
+
 
 
 #### 1.1.1.6 Local User Management and UserDB Sync
@@ -299,14 +366,31 @@ shell using the hamctl command.
     * *user* : This is the username being authorized. This is a string.
     * *tenant* : This contains the tenant with which the user is associated. This is a string
     * *role* : This specifies the role associated with the username in the tenant. This is a comma separated list of strings.
-      The UserTable is keyed on <***user, tenant***>.
+      
+  The UserTable is keyed on <***user, tenant***>.
 
   **Note**: The UserTable will _not_ store users' salted+hashed passwords due to security concerns surrounding access restrictions to the DB; instead, that information will be maintained in `/etc/shadow` as per Linux convention.
+
+* **RoleTable**
+
+  This table contains the information on various roles.
+    * *name* : This is the name of the role.
+    * *roleGrp* : This is the Linux group this role maps to.
+    * *roleDes* : A description of the role.
+    * *writePermit* : Comma separated list of writes permitted to YANG paths.
+    * *writeDeny* : Comma separated list of writes denied to YANG paths.
+    * *readPermit* : Comma separated list of reads permitted to YANG paths.
+    * *readDeny* : Comma separated list of reads denied to YANG paths.
+    * *rpcPermit* : Comma separated list of RPCs permitted to YANG paths.
+    * *rpcDeny* : Comma separated list of RPCs denied to YANG paths.
+    * *notifyPermit* : Comma separated list of notifies permitted to YANG paths.
+    * *notifyDeny* : Comma separated list of notifies denied to YANG paths.
+      
+  The RoleTable is keyed on <***name***>
 
 **Future Support**
 
 * **PrivilegeTable**
-
   This table provides the information about the type of operations that a particular role is authorized to perform. The authorization can be performed at the granularity of a feature, feature group, or the entire system. The table has the following columns :
     * *role* : The role associated with the user that is being authorized. This is a string.
     * *feature* : This is feature that the role is being authorized to access. The granularity of the feature can be :
@@ -379,6 +463,29 @@ Users may be managed via Linux tools like `sonic-useradd`, `sonic-usermod`, `pas
 `no username <name>` -- Deletes a user from the system.
 * **name** is a text string of 1-32 alphanumeric characters
 
+
+##### role
+In this example, a software developer role (sw-admin) inherits from the net-operator role and adds more permissions.
+```
+sonic(config)# userrole sw-admin inherit net-operator
+sonic(config-role-sw-admin)# 10 permit read \/openconfig-platform:components\/component\/name=system software
+sonic(config-role-sw-admin)# 15 permit write <Regular expression (RE) path for writing to next image>/name=next_img
+sonic(config-role-sw-admin)# 20 permit rpc <RE restconf URI to allow reboot>
+sonic(config-role-sw-admin)# 25 deny rpc <RE restconf to save config>
+```
+
+Another example, a operations admin (ops-admin) inherits from net-operator and adds more permissions
+on top of the inherited role.
+```
+sonic(config)# userrole ops-admin inherit net-operator
+sonic(config-role-ops-admin): 10 permit read  \/openconfig-platform:components*
+sonic(config-role-ops-admin): 20 permit read <RE path to optics and health>
+sonic(config-role-ops-admin): 30 permit read \/openconfig-platform:components\/component\/name=[PSU|TEMP] [1-10]
+sonic(config-role-ops-admin): 40 permit write <RE path to write to LEDs>
+sonic(config-role-ops-admin): 50 deny rpc <path fo reboot>
+sonic(config-role-ops-admin): 60 deny write <Path for configs>
+```
+
 ##### aaa authentication
 ```
 aaa authentication {rest-server | gnmi-server} {[password] [token] [certificate]}
@@ -398,12 +505,7 @@ accessed via SSH.
 ##### userrole
 `userrole <name>` - Creates a new custom role and enters userrole config to
 enable/disable individual features.
-`(config-userrole)# feature <feat-name> {read-only | read-write}` - Enable
-feature `<feat-name>` with read-only or read-write access.
-`(config-userrole)# no feature <feat-name>` - Disable access to feature
-`<feat-name>`.
-
-`no userrole <name>` - Deletes a user role from the system.
+`no userrole <name>` - Deletes a user role from the system. Will drop users in the deleted role to default role.
 
 #### 3.6.2.2 Show Commands
 
@@ -446,6 +548,65 @@ Translib will authorize the user and when the authorization fails will return ap
 
 If a user authenticates but is not part of one of the pre-defined roles, they will not be allowed to do anything at all on the system.
 
+### 5.4.1 Authentication Module
+To optimize performance for authenicating a user's role and it's supported operations, an in-memory cache will be used. When translib initializes the authentication module (authorize.go), the module will also initial the cache. The cache is initialized
+by reading predefined or saved roles stored in configDb's `role` table.
+
+The authentication module must be initialized with a table using the following format:
+```
+{
+    <role name>: {
+        "rules" : {
+            "rpc": {
+                "permit": [<list of permitted YANG paths> | "*"],
+                "deny": [<list of denied YANG paths> | "*"]
+            },
+            "notify": {
+                "permit": [<list of permitted YANG paths> | "*"],
+                "deny": [<list of denied YANG paths> | "*"]
+            },
+            "write": {
+                "permit": [<list of permitted YANG paths> | "*"],
+                "deny": [<list of denied YANG paths> | "*"]
+            },
+            "read": {
+                "permit": [<list of permitted YANG paths> | "*"],
+                "deny": [<list of denied YANG paths> | "*"]
+            }
+        }
+    }
+}
+```
+
+For example:
+
+```
+{
+    "sysadmin" : {
+            "rules": {
+                "rpc: {
+                    "rule": "rpc",
+                    "permit": ["*"]
+                },
+                "notif": {
+                    "rule": "notif",
+                    "permit": ["*"]       
+                },
+                "write": {
+                    "rule": "write",
+                    "permit": ["*"]
+                },
+                "read": {
+                    "rule": "read",
+                    "permit": ["*"],
+                    "deny": ["/openconfig-platform:components/*"]
+                }
+            }
+        }
+    }
+}
+```
+
 # 6 Serviceability and Debug
 All operations performed by NBIs (CLI commands, REST/gNMI operations) should be logged/audited with usernames attached to the given operation(s) performed.
 
@@ -479,3 +640,15 @@ See previous section 1.1.3: Scalability Requirements
 | REST with custom role unauthorized | Perform unauthorized operations with custom role user via REST |
 | gNMI with custom role authorized | Perform authorized operations with custom role user via gNMI |
 | gNMI with custom role unauthorized | Perform unauthorized operations with custom role user via gNMI |
+| CLI create custom role through inheritance | Create a new role by copying a pre-defined role |
+| CLI create a blank role | Create a new role that uses that have everything denied |
+| CLI create role with invalid name | Create a role with a role-name that is already being used |
+| CLI edit an existing role | Edit an existing role to change permissions |
+| REST create custom role through inheritance | Create a new role by copying a pre-defined role |
+| REST create a blank role | Create a new role that uses that have everything denied |
+| REST create role with invalid name | Create a role with a role-name that is already being used |
+| REST edit an existing role | Edit an existing role to change permissions |
+| gNMI create custom role through inheritance | Create a new role by copying a pre-defined role |
+| gNMI create a blank role | Create a new role that uses that have everything denied |
+| gNMI create role with invalid name | Create a role with a role-name that is already being used |
+| gNMI edit an existing role | Edit an existing role to change permissions |
