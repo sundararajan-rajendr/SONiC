@@ -92,7 +92,6 @@ This document provides comprehensive functional and design information about the
 | CLI                      | Command Line Interface              |
 
 # 1 Feature Overview
-
 Display the qualification status of transceivers. Based on the media type, this feature helps for identifying and displaying whether a media is vendor-qualified or not.
 By this feature, Vendor platforms will be able to recognize certified and supported transceivers. 
 
@@ -101,70 +100,69 @@ NA
 
 ## 1.2 Requirements
 
-1 Overview  
+1 Overview
 Based on the media type, this feature help us for identifying and displaying whether a media is vendor-qualified or not.
 
-2 Functionality  
-
+2 Functionality
 This feature helps for identifying and displaying whether a media is vendor-qualified or not. Vendor platforms will be able to recognize certified and supported transceivers.
 
 The Media qualification can be done based on various parameters such as vendor name, part number, and/or vendor-specific product specifications encoding present in the custom info space in the EEPROM.
  
-3 Interfaces  
+3 Interfaces
 NA
 
-4 Configuration  
+4 Configuration
 NA
 
-5 User Interfaces  
+5 User Interfaces
 The feature is managed through the SONiC Management Framework, including full support for Klish, REST and gNMI  
 
-6 Serviceability  
+6 Serviceability
 UI show commands are provided to show the transceiver qualified detail.
 
-7 Scaling  
+7 Scaling
 NA
 
-8 Warm Boot/ISSU  
+8 Warm Boot/ISSU
 NA
 
-9 Platforms  
+9 Platforms
 Media qualification is supported on all SONiC platforms  
 
-10 Feature Interactions/Exclusions  
+10 Feature Interactions/Exclusions
 A Media qualification is typically associated with PMON/XCVRD
+
 •	YANG extension for displaying the vendor qualification status, and
 •	A platform-specific extension API for determining the vendor-qualification status.
 
 	i) The "get_transceiver_info_dict" API will update the transceiver information by reading the EEPROM content of the media, which inturn calls the "get_static_info" API to update the media qualification status by invoking "is_qualified" API.
 
-11 Limitations  
+11 Limitations
 NA
 
 ## 1.3 Design Overview
+
 ### 1.3.1 Basic Approach
 The Media qualification can be done based on various parameters such as vendor name, part number, and/or vendor-specific product specifications.
 
 ### 1.3.2 Container
-
 No new containers are introduced for this feature. Existing PMON, Management framework and Redis containers are updated.
 
 ### 1.3.3 SAI Overview
 NA
 
 # 2 Functionality
-
 This feature helps for identifying and displaying whether a media is vendor-qualified or not. Vendor platforms will be able to recognize certified and supported transceivers.
 
 The Media qualification can be done based on various parameters such as vendor name, part number and/or vendor-specific product specification encoding present in the custom info space in the EEPROM.
 
 # 3 Design
+
 ## 3.1 Overview
 
 ![](https://github.com/sundararajan-rajendr/SONiC/blob/master/images/Design_Overview.png)
 
 ### 3.1.1 Service and Docker Management
-
 No new service or docker is introduced. PMON, management framework dockers and XCVRD daemons are used.
 
 ### 3.1.2 Packet Handling
@@ -174,19 +172,24 @@ NA
 
 ### 3.2.1 CONFIG DB
 NA
+
 ### 3.2.2 APP DB
 NA
+
 ### 3.2.3 STATE DB
 "is_qualified" field type in TRANSCEIVER_INFO is modified as Boolean.
 
 ### 3.2.4 ASIC DB
 NA
+
 ### 3.2.5 COUNTER DB
 NA
+
 ### 3.2.6 ERROR DB
 NA
 
 ## 3.3 Switch State Service Design
+
 ### 3.3.1 Orchestration Agent
 NA
 
@@ -254,6 +257,7 @@ augment /oc-pf:components/oc-pf:component/oc-transceiver:transceiver/oc-transcei
 
 #### 3.6.2.1 Configuration Commands
 NA
+
 #### 3.6.2.2 Show Commands
 ```
 In Click:
@@ -328,7 +332,6 @@ Eth1/21      SFP28 25GBASE-SR-NOF                    DELL             W4GPP     
 NA
 
 ### 3.6.3 REST API Support
-
 New attribute url
 ```
 /openconfig-platform:components/component={name}/openconfig-platform-transceiver:transceiver/state/openconfig-platform-ext:qualified"
@@ -336,7 +339,7 @@ New attribute url
 
 ### 3.6.4 gNMI Support
 
-![](https://github.com/project-arlo/sonic-mgmt-common/blob/dell_sonic_share/models/yang/sonic/sonic-transceiver.yang)
+(https://github.com/project-arlo/sonic-mgmt-common/blob/dell_sonic_share/models/yang/sonic/sonic-transceiver.yang)
 
 ## 3.7 Warm Boot Support
 NA
