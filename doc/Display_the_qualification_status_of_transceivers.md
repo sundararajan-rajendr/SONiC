@@ -102,9 +102,10 @@ NA
 ## 1.2 Requirements
 
 1 Overview  
-1.0 - Based on the media type, this feature help us for identifying and displaying whether a media is vendor-qualified or not.
+Based on the media type, this feature help us for identifying and displaying whether a media is vendor-qualified or not.
 
-2 Functionality
+2 Functionality  
+
 This feature helps for identifying and displaying whether a media is vendor-qualified or not. Vendor platforms will be able to recognize certified and supported transceivers.
 
 The Media qualification can be done based on various parameters such as vendor name, part number, and/or vendor-specific product specifications encoding present in the custom info space in the EEPROM.
@@ -116,11 +117,10 @@ NA
 NA
 
 5 User Interfaces  
-5.0 The feature is managed through the SONiC Management Framework, including full support for Klish, REST and gNMI  
+The feature is managed through the SONiC Management Framework, including full support for Klish, REST and gNMI  
 
 6 Serviceability  
-6.0 - UI show commands are provided to show the transceiver qualified detail.
-
+UI show commands are provided to show the transceiver qualified detail.
 
 7 Scaling  
 NA
@@ -129,10 +129,10 @@ NA
 NA
 
 9 Platforms  
-9.0 - Media qualification is supported on all SONiC platforms  
+Media qualification is supported on all SONiC platforms  
 
 10 Feature Interactions/Exclusions  
-10.0 - A Media qualification is typically associated with PMON/XCVRD
+A Media qualification is typically associated with PMON/XCVRD
 •	YANG extension for displaying the vendor qualification status, and
 •	A platform-specific extension API for determining the vendor-qualification status.
 
@@ -277,6 +277,7 @@ Ethernet28   N/A                                     N/A              N/A       
 Ethernet32   QSFP+ 40GBASE-CR4-DAC-1.0M              Amphenol         599690001        APF11510011VTY    False
 ```
 
+```
 In Klish:
 Usage: show interface transceiver [Eth <slot/port[/subport]-slot/port[/subport]> [summary]] [summary]
 
@@ -321,6 +322,7 @@ show interface transceiver Eth 1/21 summary
 Interface    Name                                    Vendor           Part No.         Serial No.        Qualified
 -------------------------------------------------------------------------------------------------------------------
 Eth1/21      SFP28 25GBASE-SR-NOF                    DELL             W4GPP            CN07919194K04K9   True
+```
 
 #### 3.6.2.3 Exec Commands
 NA
