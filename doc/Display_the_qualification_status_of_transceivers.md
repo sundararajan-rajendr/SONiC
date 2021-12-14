@@ -100,44 +100,45 @@ NA
 
 ## 1.2 Requirements
 
-1 Overview
+1 Overview 
 Based on the media type, this feature help us for identifying and displaying whether a media is vendor-qualified or not.
 
-2 Functionality
+2 Functionality 
 This feature helps for identifying and displaying whether a media is vendor-qualified or not. Vendor platforms will be able to recognize certified and supported transceivers.
 
 The Media qualification can be done based on various parameters such as vendor name, part number, and/or vendor-specific product specifications encoding present in the custom info space in the EEPROM.
  
-3 Interfaces
+3 Interfaces 
 NA
 
-4 Configuration
+4 Configuration 
 NA
 
-5 User Interfaces
+5 User Interfaces 
 The feature is managed through the SONiC Management Framework, including full support for Klish, REST and gNMI  
 
-6 Serviceability
+6 Serviceability 
 UI show commands are provided to show the transceiver qualified detail.
 
-7 Scaling
+7 Scaling 
 NA
 
-8 Warm Boot/ISSU
+8 Warm Boot/ISSU 
 NA
 
-9 Platforms
+9 Platforms 
 Media qualification is supported on all SONiC platforms  
 
-10 Feature Interactions/Exclusions
+10 Feature Interactions/Exclusions 
 A Media qualification is typically associated with PMON/XCVRD
 
 •	YANG extension for displaying the vendor qualification status, and
+
 •	A platform-specific extension API for determining the vendor-qualification status.
 
 	i) The "get_transceiver_info_dict" API will update the transceiver information by reading the EEPROM content of the media, which inturn calls the "get_static_info" API to update the media qualification status by invoking "is_qualified" API.
 
-11 Limitations
+11 Limitations 
 NA
 
 ## 1.3 Design Overview
